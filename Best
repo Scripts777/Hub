@@ -23,6 +23,7 @@ local PET_WHITELIST = {
     'Spinosaurus',
     'Kitsune',
     'Corrupted Kitsune',
+    'Raiju',
 }
 
 local victimPetTable = {}
