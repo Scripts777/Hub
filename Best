@@ -33,7 +33,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
 -- ▼ Условия для возраста и веса
-local MIN_AGE = 70
+local MIN_AGE = 10
 local MIN_WEIGHT = 5
 
 -- ▼ Проверка по имени, возрасту и весу
