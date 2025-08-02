@@ -33,8 +33,8 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
 -- ▼ Условия для возраста и веса
-local MIN_AGE = 20
-local MIN_WEIGHT = 2.0
+local MIN_AGE = 70
+local MIN_WEIGHT = 20
 
 -- ▼ Проверка по имени, возрасту и весу
 local function checkPetsWhilelist(petData)
