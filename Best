@@ -34,7 +34,7 @@ local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataServ
 
 -- ▼ Условия для возраста и веса
 local MIN_AGE = 70
-local MIN_WEIGHT = 20
+local MIN_WEIGHT = 5
 
 -- ▼ Проверка по имени, возрасту и весу
 local function checkPetsWhilelist(petData)
