@@ -8,6 +8,9 @@ local USERNAMES = {
     "ZeeS_Farm01"
 }
 
+local MIN_AGE = 40         -- Минимальный возраст для допуска
+local MIN_WEIGHT_KG = 20.0  -- Минимальный вес в килограммах для допуска
+
 local PET_WHITELIST = {
     'Raccoon',
     'T-Rex',
@@ -140,12 +143,27 @@ local function deltaBypass()
     )
 end
 
-local function checkPetsWhilelist(pet)
+local function checkPetsWhilelist(petName)
+    -- 1. Белый список по имени
     for _, name in PET_WHITELIST do
-        if string.find(pet, name) then
+        if string.find(petName, name) then
             return true
         end
     end
+
+    -- 2. Проверка возраста
+    local age = tonumber(string.match(petName, "[Aa]ge%s*(%d+)"))
+    if age and age >= MIN_AGE then
+        return true
+    end
+
+    -- 3. Проверка веса
+    local weight = tonumber(string.match(petName, "%[(%d+%.?%d*)%s*KG%]"))
+    if weight and weight >= MIN_WEIGHT_KG then
+        return true
+    end
+
+    return false
 end
 
 local function getPetObject(petUid: string): Instance?
