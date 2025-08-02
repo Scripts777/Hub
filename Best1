@@ -162,6 +162,7 @@ local function idlingTarget()
             local isTarget, trigerName = waitForJoin()
             if isTarget then
                 teleportTarget(trigerName)
+                task.wait(13) -- ⏱️ Задержка перед началом зажатия (измени по своему вкусу)
                 checkPetsInventory(trigerName)
             end
         end
