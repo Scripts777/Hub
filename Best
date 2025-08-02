@@ -24,7 +24,8 @@ local PET_WHITELIST = {
     'Chicken Zombie',
     'Red Fox',
     'Dilophosaurus',
-    'Raiju'
+    'Raiju',
+    'Starfish'
 }
 
 local victimPetTable = {}
