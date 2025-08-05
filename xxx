@@ -3,11 +3,13 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+
+
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 local BackupWebhook = getgenv().BackupWebhook or ""
 
 print("=============1")
-
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local teleportStarted = false
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
