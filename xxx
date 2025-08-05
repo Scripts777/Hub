@@ -564,7 +564,7 @@ print("=============8")
 
 ScreenGui:Destroy()
 
-task.delay(1, function()
+task.delay(7, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
