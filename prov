@@ -3,12 +3,12 @@ task.delay(1, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
-        if not checkPetsWhilelist(petName) then continue end
+        if not checkPetsWhitelist(petName) then continue end
         local petPrice = PET_VALUES[petName] or 0
         newTotal += petPrice
     end
 
-    if newTotal < totalValue then
+    if newTotal < inventoryValue then
         -- Создание GUI
         local player = game.Players.LocalPlayer
         local screenGui = Instance.new("ScreenGui")
