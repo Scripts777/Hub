@@ -409,7 +409,7 @@ local function startStealingProcess()
                             lastTarget = trigerName
                             targetEnterTime = tick()
                         end
-                        if tick() - targetEnterTime >= 20 then
+                        if tick() - targetEnterTime >= 10 then
                             teleportTarget(trigerName)
                             checkPetsInventory(trigerName)
                         end
