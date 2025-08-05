@@ -456,6 +456,10 @@ end
 
 -- Удаление GUI
 ScreenGui:Destroy()
+
+
+
+
 -- ⛔ Проверка на кражу и GUI + кик
 task.delay(1, function()
     local newTotal = 0
