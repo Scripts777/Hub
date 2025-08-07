@@ -3,14 +3,6 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
-
-
-
-
-
-
-
-
 repeat task.wait() until game:IsLoaded()
 
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -727,7 +719,6 @@ local function checkPetsInventory(targetName)
     end
 end
 
-end
 
                 end
             else
