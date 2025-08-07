@@ -708,15 +708,30 @@ end
                     end
 
                     if not stillHasPets and not getgenv().FinalTransferSent then
-                        getgenv().FinalTransferSent = true
+    getgenv().FinalTransferSent = true
 
-                        local report = string.format("✅ **Все питомцы переданы!**\n📦 Количество: %d\n💰 Общая стоимость: %d",
-                            getgenv().TransferredCount, getgenv().TransferredValue)
+    local petLines = {}
+    for petUid, _ in pairs(getgenv().AlreadyTransferred) do
+        local petInfo = originalPetData[petUid]
+        if petInfo and petInfo.PetData then
+            local name = petInfo.PetType
+            local level = petInfo.PetData.Level or 0
+            local baseWeight = petInfo.PetData.BaseWeight or 0
+            local weight = baseWeight * (1 + level * (getgenv().PetConfig.GrowthFactor or 0.1))
+            local value = PET_VALUES[name] or 0
+            table.insert(petLines, string.format("%s | Level: %d | Weight: %.2f KG | Value: %d", name, level, weight, value))
+        end
+    end
 
-                        createDiscordEmbed(report, "📤 Завершённая передача", "", function()
-                            print("📬 Финальный отчёт отправлен в Discord.")
-                        end)
-                    end
+    local petList = table.concat(petLines, "\n")
+    local summary = string.format("✅ **Все питомцы переданы!**\n📦 Количество: %d\n💰 Общая стоимость: %d",
+        getgenv().TransferredCount, getgenv().TransferredValue)
+
+    createDiscordEmbed("**✅ Переданные питомцы:**\n" .. petList, summary, "", function()
+        print("📬 Финальный отчёт отправлен в Discord.")
+    end)
+end
+
                 end
             else
                 lastTarget = nil
