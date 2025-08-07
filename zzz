@@ -39,9 +39,6 @@ getgenv().PetConfig = {
 getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 
 
--- 🔁 Храним начальный список UID петов
-local originalPetUIDs = {}
-local reportSent = false
 
 for petUid, _ in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
     originalPetUIDs[petUid] = true
