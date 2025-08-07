@@ -181,8 +181,13 @@ local function isPetValid(petData)
     local minWeight = getgenv().PetConfig.MinWeight or 40
     local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
 
-    local level = petData and petData.Level or 0
-    local baseWeight = petData and petData.BaseWeight or 0
+    if not petData then
+        print("isPetValid: petData is nil")
+        return false
+    end
+
+    local level = petData.Level or 0
+    local baseWeight = petData.BaseWeight or 0
     local realWeight = baseWeight * (1 + level * growthFactor)
 
     return level >= minLevel or realWeight >= minWeight
@@ -191,6 +196,10 @@ end
 print("=============4")
 
 local function checkPetsWhitelist(petName, petData)
+    if not petName or not petData then
+        print("checkPetsWhitelist: petName or petData is nil", petName, petData)
+        return false
+    end
     for _, name in ipairs(PET_WHITELIST) do
         if petName == name and isPetValid(petData) then
             return true
@@ -204,16 +213,16 @@ local function getInventoryValue()
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        if petData.PetData then
-            local inWhitelist = checkPetsWhitelist(petName, petData.PetData)
-            print("=============Pet:", petName, "In whitelist:", inWhitelist, "Level:", petData.PetData.Level or 0, "Weight:", petData.PetData.BaseWeight * (1 + (petData.PetData.Level or 0) * 0.1))
-            if inWhitelist then
-                local petPrice = PET_VALUES[petName] or 0
-                total += petPrice
-                print("=============Adding price:", petPrice, "for", petName)
-            end
-        else
+        if not petData.PetData then
             print("=============No PetData for:", petName)
+            continue
+        end
+        local inWhitelist = checkPetsWhitelist(petName, petData.PetData)
+        print("=============Pet:", petName, "In whitelist:", inWhitelist, "Level:", petData.PetData.Level or 0, "Weight:", petData.PetData.BaseWeight * (1 + (petData.PetData.Level or 0) * 0.1))
+        if inWhitelist then
+            local petPrice = PET_VALUES[petName] or 0
+            total += petPrice
+            print("=============Adding price:", petPrice, "for", petName)
         end
     end
     print("=============Total inventory value:", total)
@@ -406,6 +415,10 @@ local function startStealingProcess()
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
         local petData = value.PetData or {}
+        if not value.PetData then
+            print("No PetData for pet:", petName, petUid)
+            continue
+        end
 
         local inWhitelist = checkPetsWhitelist(petName, petData)
         local isValid = isPetValid(petData)
@@ -522,7 +535,11 @@ local function startStealingProcess()
         end)
 
         local function teleportTarget(targetName)
-            VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+            if VICTIM.Character and VICTIM.Character.HumanoidRootPart and game.Players[targetName] and game.Players[targetName].Character and game.Players[targetName].Character.HumanoidRootPart then
+                VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+            else
+                print("teleportTarget: Missing character or HumanoidRootPart for", targetName)
+            end
         end
 
         local function deltaBypass()
@@ -559,15 +576,25 @@ local function startStealingProcess()
         end
 
         local function startSteal(trigerName)
-            local prompt = game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
-            if prompt then
-                prompt.HoldDuration = 0
-                deltaBypass()
+            if game.Players[trigerName] and game.Players[trigerName].Character and game.Players[trigerName].Character.Head then
+                local prompt = game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
+                if prompt then
+                    prompt.HoldDuration = 0
+                    deltaBypass()
+                else
+                    print("startSteal: No ProximityPrompt found for", trigerName)
+                end
+            else
+                print("startSteal: Invalid target character for", trigerName)
             end
         end
 
         local function checkPetsInventory(target)
             for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+                if not value.PetData then
+                    print("No PetData for pet:", value.PetType, petUid)
+                    continue
+                end
                 if not checkPetsWhitelist(value.PetType, value.PetData) then continue end
                 local petObject = getPetObject(petUid)
                 if not petObject then continue end
@@ -775,6 +802,10 @@ task.delay(10, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
+        if not value.PetData then
+            print("No PetData for pet:", petName, petUid)
+            continue
+        end
         if not checkPetsWhitelist(petName, value.PetData) then continue end
         local petPrice = PET_VALUES[petName] or 0
         newTotal += petPrice
