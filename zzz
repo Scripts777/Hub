@@ -199,19 +199,19 @@ local PET_VALUES = {
     ["French Fry Ferret"] = 300, ["Raccoon"] = 400, ["T-Rex"] = 100,
     ["Fennec Fox"] = 300, ["Dragonfly"] = 150, ["Butterfly"] = 300,
     ["Disco Bee"] = 500, ["Mimic Octopus"] = 100, ["Queen Bee"] = 100,
-    ["Spinosaurus"] = 200, ["Kitsune"] = 1890, ["Corrupted Kitsune"] = 100
+    ["Spinosaurus"] = 200, ["Kitsune"] = 1890, ["Corrupted Kitsune"] = 100,
+    ["Chicken Zombie"] = 100, ["Red Fox"] = 100
 }
 
 
 -- 🔎 Проверка возраста и веса питомца
 local function isPetValid(petData)
-    local minLevel = getgenv().MinLevel or 0
-    local minWeight = getgenv().MinWeight or 0
-    local growthFactor = 0.1 -- 🔒 скрыто в коде, нельзя изменить извне
+    local minLevel = getgenv().PetConfig.MinLevel or 100
+    local minWeight = getgenv().PetConfig.MinWeight or 40
+    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
 
     local level = petData.Level or 0
     local baseWeight = petData.BaseWeight or 0
-
     local realWeight = baseWeight * (1 + level * growthFactor)
 
     return level >= minLevel or realWeight >= minWeight
@@ -229,7 +229,7 @@ print("=============4")
 
 local function checkPetsWhitelist(petName, petData)
     for _, name in ipairs(PET_WHITELIST) do
-        if string.find(petName, name) and isPetValid(petData) then
+        if petName == name and isPetValid(petData) then
             return true
         end
     end
@@ -242,10 +242,16 @@ local function getInventoryValue()
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName, petData.PetData))
-        if checkPetsWhitelist(petName, petData.PetData) then
-            local petPrice = PET_VALUES[petName] or 0
-            total += petPrice
+        if petData.PetData then
+            local inWhitelist = checkPetsWhitelist(petName, petData.PetData)
+            print("=============Pet:", petName, "In whitelist:", inWhitelist, "Level:", petData.PetData.Level or 0, "Weight:", petData.PetData.BaseWeight * (1 + (petData.PetData.Level or 0) * 0.1))
+            if inWhitelist then
+                local petPrice = PET_VALUES[petName] or 0
+                total += petPrice
+                print("=============Adding price:", petPrice, "for", petName)
+            end
+        else
+            print("=============No PetData for:", petName)
         end
     end
     print("=============Total inventory value:", total)
