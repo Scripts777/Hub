@@ -242,7 +242,7 @@ local function getInventoryValue()
     local total = 0
     for _, petData in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
         local petName = petData.PetType
-        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName))
+        print("=============Pet:", petName, "In whitelist:", checkPetsWhitelist(petName, petData.PetData))
         if checkPetsWhitelist(petName, petData.PetData) then
             local petPrice = PET_VALUES[petName] or 0
             total += petPrice
@@ -251,6 +251,8 @@ local function getInventoryValue()
     print("=============Total inventory value:", total)
     return total
 end
+
+
 
 print("=============5")
 local inventoryValue = getInventoryValue()
