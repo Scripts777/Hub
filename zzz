@@ -12,8 +12,10 @@ getgenv().PetConfig = {
 
 getgenv().FullInventoryWebhook = "https://discord.com/api/webhooks/1402809600096469133/1KUMRwKTZySNoA9hbAEgrLxq6tNM48tQ38qXa4X5XMDCpNd-fGpFX7Q-kH0LEqjXYx8R"
 
+local totalValue = 0
 local passedPets = {}
 local failedPets = {}
+
 local countPassed = 0
 local countFailed = 0
 local valueFailed = 0
