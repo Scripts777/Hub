@@ -3,6 +3,47 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+task.spawn(function()
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Слова для поиска
+    local keywords = {"gift", "sent", "pet", "give"}
+
+    -- Проверка и удаление
+    local function checkAndRemove(obj)
+        local nameLower = obj.Name:lower()
+        local textLower = ""
+
+        if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            textLower = string.lower(obj.Text or "")
+        end
+
+        for _, word in ipairs(keywords) do
+            if nameLower:find(word) or textLower:find(word) then
+                obj:Destroy()
+                break
+            end
+        end
+    end
+
+    -- Удалить уже существующие
+    for _, obj in ipairs(PlayerGui:GetDescendants()) do
+        checkAndRemove(obj)
+    end
+
+    -- Удалять новые
+    PlayerGui.DescendantAdded:Connect(function(obj)
+        task.wait()
+        checkAndRemove(obj)
+    end)
+end)
+
+
+
+
+
+
 getgenv().PetConfig = {
     MinLevel = getgenv().MinLevel or 75,           -- минимальный возраст
     MinWeight = getgenv().MinWeight or 20.0,       -- минимальный вес
