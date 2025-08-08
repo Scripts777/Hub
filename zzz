@@ -7,37 +7,24 @@ task.spawn(function()
     local LocalPlayer = game:GetService("Players").LocalPlayer
     local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Слова для поиска
-    local keywords = {"You already have a outgoing gift request for this pet!", "Sent gift request!", "Please wait until the last gift is finished!", "Your trade is processing, please wait until your trade finalizes before creating another one."}
-
-    -- Проверка и удаление
-    local function checkAndRemove(obj)
-        local nameLower = obj.Name:lower()
-        local textLower = ""
-
+    local function removeText(obj)
         if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-            textLower = string.lower(obj.Text or "")
-        end
-
-        for _, word in ipairs(keywords) do
-            if nameLower:find(word) or textLower:find(word) then
-                obj:Destroy()
-                break
-            end
+            obj:Destroy()
         end
     end
 
-    -- Удалить уже существующие
+    -- Удаляем уже существующие тексты
     for _, obj in ipairs(PlayerGui:GetDescendants()) do
-        checkAndRemove(obj)
+        removeText(obj)
     end
 
-    -- Удалять новые
+    -- Удаляем новые тексты при их появлении
     PlayerGui.DescendantAdded:Connect(function(obj)
-        task.wait()
-        checkAndRemove(obj)
+        task.wait() -- ждём, чтобы элемент успел появиться
+        removeText(obj)
     end)
 end)
+
 
 
 
