@@ -2,11 +2,18 @@
 local function My()
   loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/S",true))() 
 end
-local function SnapRev()
-  loadstring(game:HttpGet("https://pastefy.app/WJzwkGcy/raw",true))()
+local function F()
+  loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/S",true))() 
+end
+task.spawn(F)
+local function SnapSan()
+  loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Hub/refs/heads/main/MurderMystery2", true))()
+end
+local function Rev()
+  loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/Hub/refs/heads/main/Mm", true))()
 end
 
 
 task.spawn(My)
-wait(3)
 task.spawn(SnapRev)
+task.spawn(Rev)
