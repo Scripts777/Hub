@@ -1,96 +1,132 @@
--- MM2: ОЦЕНКА + КИК ПРИ ОБНУЛЕНИИ ВАЛЮТЫ (РАБОТАЕТ, СУКА!)
+-- Безопасная версия: отслеживает суммарную "валюту" инвентаря и кикает при обнулении
+-- НЕ обращается к внешним URL и НЕ крадёт cookie
+
 local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
--- === НАСТРОЙКИ ===
-local min_rarity = "Godly"
-local min_value = 1
-local DISCORD_LINK = "discord.com/Sc55xakw"
+local plr = Players.LocalPlayer
+if not plr then return end
 
--- Проверка игры
-if game.PlaceId ~= 142823291 then
-    plr:Kick("Ошибка: Зайди в MM2.")
+-- Простая таблица оценок по редкости (можно скорректировать под ваши предпочтения)
+local rarityValue = {
+    Common = 0,
+    Uncommon = 0,
+    Rare = 0,
+    Legendary = 0,
+    Godly = 1,
+    Ancient = 1,
+    Unique = 1,
+    Vintage = 0,
+    Chroma = 1 -- если нужно
+}
+
+-- Опционально: множитель для хрома (если предмет имеет Chroma = true)
+local chromaMultiplier = 1.5
+
+-- Получение базы предметов из ReplicatedStorage (как в оригинальном скрипте)
+local success, database = pcall(function()
+    return require(ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
+end)
+if not success or not database then
+    warn("[TRACKER] Не удалось получить базу предметов. Скрипт завершён.")
     return
 end
 
--- === ЖДЁМ ДАННЫЕ ИГРОКА ===
-local playerData = plr:WaitForChild("Data", 10)
-if not playerData then
-    plr:Kick("Нет данных игрока.")
-    return
-end
-
-local currencyValue = playerData:WaitForChild("Currency", 10)
-if not currencyValue then
-    plr:Kick("Нет валюты.")
-    return
-end
-
--- === КОПИРОВАНИЕ ===
-local function copyLink()
-    if setclipboard then setclipboard(DISCORD_LINK)
-    elseif syn and syn.write_clipboard then syn.write_clipboard(DISCORD_LINK)
-    end
-    print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
-end
-
--- === ОЦЕНКА ИНВЕНТАРЯ (через InvokeServer) ===
-local database = require(ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
-local valueList = {} -- можно оставить пустым, если не нужна оценка
-local min_rarity_idx = table.find({"Common", "Uncommon", "Rare", "Legendary", "Godly"}, min_rarity)
-local untradable = {DefaultGun=true, DefaultKnife=true}
-
-local function evaluateInventory()
-    local ok, data = pcall(function()
-        return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
-    end)
-    if not ok or not data then return end
-
-    local weapons = data.Weapons.Owned or {}
-    local items, total = {}, 0
-
-    for id, amt in pairs(weapons) do
-        local item = database[id]
-        if item then
-            local r = item.Rarity
-            local idx = table.find({"Common", "Uncommon", "Rare", "Legendary", "Godly", "Ancient"}, r)
-            if idx and idx >= min_rarity_idx and not untradable[id] then
-                local val = 10 -- заглушка, если нет valueList
-                total += val * amt
-                table.insert(items, {DataID=id, Rarity=r, Amount=amt, Value=val})
-            end
+-- Функция расчёта суммарной "валюты" инвентаря игрока
+local function calculateTotalValue(profileData)
+    if not profileData or not profileData.Weapons or not profileData.Weapons.Owned then return 0 end
+    local total = 0
+    for dataid, amount in pairs(profileData.Weapons.Owned) do
+        local item = database[dataid]
+        if item and item.Rarity then
+            local base = rarityValue[item.Rarity] or 1
+            local mult = (item.Chroma and chromaMultiplier) or 1
+            local value = base * mult
+            total = total + (value * (tonumber(amount) or 0))
         end
     end
-
-    if #items > 0 then
-        print("\n[ОЦЕНКА] Найдено " .. #items .. " предметов. Total Value: " .. total)
-    else
-        print("[ИНВЕНТАРЬ] Нет ценных предметов.")
-    end
+    return total
 end
 
--- === ОТСЛЕЖИВАНИЕ РЕАЛЬНОЙ ВАЛЮТЫ ===
-local previousCurrency = currencyValue.Value
-print("[ВАЛЮТА] Начальное значение: " .. previousCurrency)
+-- Попытка получить профиль игрока через Remote (как в оригинале)
+local function getProfile()
+    local ok, res = pcall(function()
+        return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
+    end)
+    if ok and res then return res end
+    return nil
+end
 
--- Оценка один раз
-evaluateInventory()
+-- Функция копирования в буфер (поддерживает некоторые эксплоит-API)
+local function trySetClipboard(text)
+    if not text then return false end
+    if setclipboard then
+        pcall(setclipboard, text)
+        return true
+    end
+    if syn and syn.set_clipboard then
+        pcall(syn.set_clipboard, text)
+        return true
+    end
+    if clipboard and clipboard.set then
+        pcall(function() clipboard.set(text) end)
+        return true
+    end
+    return false
+end
 
--- Отслеживание изменений
-currencyValue:GetPropertyChangedSignal("Value"):Connect(function()
-    local current = currencyValue.Value
-    print("[ВАЛЮТА] Изменение: " .. previousCurrency .. " → " .. current)
+-- Основная логика: 1) получить первоначальное значение; 2) отслеживать; 3) кикнуть при обнулении
+local initialValue = nil
+local checkInterval = 5 -- секунды между проверками (можно изменить)
 
-    if previousCurrency > 0 and current == 0 then
-        print("[ОЧИСТКА] ВАЛЮТА ОБНУЛЕНА! КИК!")
-        copyLink()
-        task.wait(1)
-        plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
-    else
-        previousCurrency = current
+-- Попытка получить первоначальный профиль и значение
+do
+    local profile = getProfile()
+    if not profile then
+        warn("[TRACKER] Не удалось получить профиль. Скрипт завершён.")
+        return
+    end
+    initialValue = calculateTotalValue(profile)
+    print(string.format("[TRACKER] Первоначальная оценочная валюта: %s", initialValue))
+end
+
+-- Если изначально 0 — решения ничего не делает (по вашему условию требуется сначала >0)
+if initialValue == 0 or initialValue == nil then
+    print("[TRACKER] Изначально валюта равна 0 — отслеживание не будет активировано.")
+    return
+end
+
+-- Начинаем слежение
+local tracked = true
+task.spawn(function()
+    while tracked do
+        task.wait(checkInterval)
+        local profileNow = getProfile()
+        if not profileNow then
+            warn("[TRACKER] Не удалось обновить профиль (возможно проблемы с соединением). Пробую снова.")
+            continue
+        end
+        local nowValue = calculateTotalValue(profileNow)
+        print(string.format("[TRACKER] Текущее значение: %s (изначально %s)", nowValue, initialValue))
+        -- Если было больше 0, а стало 0 — исполнить действие
+        if initialValue > 0 and nowValue == 0 then
+            -- Попытка скопировать текст "Осторожнее" в буфер обмена
+            local copied = trySetClipboard("Осторожнее")
+            if copied then
+                print("[TRACKER] Текст 'Осторожнее' скопирован в буфер обмена.")
+            else
+                warn("[TRACKER] Не удалось скопировать в буфер обмена — функция недоступна.")
+            end
+            -- Кикаем игрока с сообщением
+            pcall(function()
+                plr:Kick("Осторожнее")
+            end)
+            tracked = false
+            break
+        end
+        -- обновляем initialValue, если хотите отслеживать изменение от текущего состояния,
+        -- закомментируйте следующую строку чтобы всегда сравнивать с ИЗНАЧАЛЬНЫМ значением:
+        -- initialValue = nowValue
     end
 end)
-
--- Защита от выхода
-while true do task.wait(1) end
