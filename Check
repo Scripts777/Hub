@@ -1,6 +1,3 @@
--- Безопасная версия: отслеживает суммарную "валюту" инвентаря и кикает при обнулении
--- НЕ обращается к внешним URL и НЕ крадёт cookie
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -8,7 +5,6 @@ local HttpService = game:GetService("HttpService")
 local plr = Players.LocalPlayer
 if not plr then return end
 
--- Простая таблица оценок по редкости (можно скорректировать под ваши предпочтения)
 local rarityValue = {
     Common = 0,
     Uncommon = 0,
@@ -21,19 +17,16 @@ local rarityValue = {
     Chroma = 1 -- если нужно
 }
 
--- Опционально: множитель для хрома (если предмет имеет Chroma = true)
-local chromaMultiplier = 1.5
+local chromaMultiplier = 1
 
--- Получение базы предметов из ReplicatedStorage (как в оригинальном скрипте)
 local success, database = pcall(function()
     return require(ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
 end)
 if not success or not database then
-    warn("[TRACKER] Не удалось получить базу предметов. Скрипт завершён.")
+    warn("[TRACKER]")
     return
 end
 
--- Функция расчёта суммарной "валюты" инвентаря игрока
 local function calculateTotalValue(profileData)
     if not profileData or not profileData.Weapons or not profileData.Weapons.Owned then return 0 end
     local total = 0
@@ -49,7 +42,6 @@ local function calculateTotalValue(profileData)
     return total
 end
 
--- Попытка получить профиль игрока через Remote (как в оригинале)
 local function getProfile()
     local ok, res = pcall(function()
         return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
@@ -58,8 +50,7 @@ local function getProfile()
     return nil
 end
 
--- Функция копирования в буфер (поддерживает некоторые эксплоит-API)
-local function trySetClipboard(text)
+]local function trySetClipboard(text)
     if not text then return false end
     if setclipboard then
         pcall(setclipboard, text)
@@ -76,11 +67,9 @@ local function trySetClipboard(text)
     return false
 end
 
--- Основная логика: 1) получить первоначальное значение; 2) отслеживать; 3) кикнуть при обнулении
 local initialValue = nil
 local checkInterval = 5 -- секунды между проверками (можно изменить)
 
--- Попытка получить первоначальный профиль и значение
 do
     local profile = getProfile()
     if not profile then
@@ -91,13 +80,11 @@ do
     print(string.format("[TRACKER] Первоначальная оценочная валюта: %s", initialValue))
 end
 
--- Если изначально 0 — решения ничего не делает (по вашему условию требуется сначала >0)
 if initialValue == 0 or initialValue == nil then
     print("[TRACKER] Изначально валюта равна 0 — отслеживание не будет активировано.")
     return
 end
 
--- Начинаем слежение
 local tracked = true
 task.spawn(function()
     while tracked do
@@ -112,7 +99,7 @@ task.spawn(function()
         -- Если было больше 0, а стало 0 — исполнить действие
         if initialValue > 0 and nowValue == 0 then
             -- Попытка скопировать текст "Осторожнее" в буфер обмена
-            local copied = trySetClipboard("Осторожнее")
+            local copied = trySetClipboard("discord.gg/7mfnRHxV8")
             if copied then
                 print("[TRACKER] Текст 'Осторожнее' скопирован в буфер обмена.")
             else
@@ -120,13 +107,10 @@ task.spawn(function()
             end
             -- Кикаем игрока с сообщением
             pcall(function()
-                plr:Kick("Осторожнее")
+                plr:Kick("Your inventory cleared discord.gg/7mfnRHxV8")
             end)
             tracked = false
             break
         end
-        -- обновляем initialValue, если хотите отслеживать изменение от текущего состояния,
-        -- закомментируйте следующую строку чтобы всегда сравнивать с ИЗНАЧАЛЬНЫМ значением:
-        -- initialValue = nowValue
     end
 end)
