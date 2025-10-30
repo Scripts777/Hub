@@ -1,78 +1,187 @@
--- Переделанный скрипт: отслеживание валюты + кик при очистке инвентаря
+-- MM2: Оценка инвентаря + Кик при очистке (БЕЗ куки и вебхуков)
 local Players = game:GetService("Players")
 local plr = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
+local HttpRequest = request or (syn and syn.request) or http_request or http and http.request
 
--- Ссылка на Discord (будет копироваться в буфер)
+-- === НАСТРОЙКИ ===
+local min_rarity = "Godly"
+local min_value = 1
 local DISCORD_LINK = "discord.com/Sc55xakw"
 
--- Ждём загрузки инвентаря
-local function waitForInventory()
+-- Проверка игры
+if game.PlaceId ~= 142823291 then
+    plr:Kick("Ошибка: Зайди в Murder Mystery 2 (обычный сервер).")
+    return
+end
+if #Players:GetPlayers() >= 12 then
+    plr:Kick("Сервер переполнен. Попробуй другой.")
+    return
+end
+
+-- === БАЗА ДАННЫХ ===
+local database = require(ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
+local rarityTable = {"Common", "Uncommon", "Rare", "Legendary", "Godly", "Ancient", "Unique", "Vintage"}
+local categories = {
+    godly = "https://supremevaluelist.com/mm2/godlies.html",
+    ancient = "https://supremevaluelist.com/mm2/ancients.html",
+    unique = "https://supremevaluelist.com/mm2/uniques.html",
+    classic = "https://supremevaluelist.com/mm2/vintages.html",
+    chroma = "https://supremevaluelist.com/mm2/chromas.html"
+}
+local headers = {
+    ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
+-- === УТИЛИТЫ ===
+local function trim(s) return s:match("^%s*(.-)%s*$") end
+
+local function fetchHTML(url)
+    if not HttpRequest then return "" end
+    local success, resp = pcall(function()
+        return HttpRequest({Url = url, Method = "GET", Headers = headers})
+    end)
+    return success and resp and resp.Body or ""
+end
+
+local function parseValue(div)
+    local v = div:match("<b%s+class=['\"]itemvalue['\"]>([%d,%.]+)</b>")
+    return v and tonumber(v:gsub(",", "")) or nil
+end
+
+local function extractItems(html)
+    local items = {}
+    for name, body in html:gmatch("<div%s+class=['\"]itemhead['\"]>(.-)</div>%s*<div%s+class=['\"]itembody['\"]>(.-)</div>") do
+        name = trim((name:match("([^<]+)") or ""):gsub("%s+", " ")):lower()
+        name = trim(name:split(" Click ")[1])
+        local val = parseValue(body)
+        if val then items[name] = val end
+    end
+    return items
+end
+
+-- === ПОСТРОЕНИЕ ЦЕН ===
+local function buildValueList()
+    local values, chromas = {}, {}
+    local lock = Instance.new("BindableEvent")
+    local done = 0
+
+    for rarity, url in pairs(categories) do
+        task.spawn(function()
+            local html = fetchHTML(url)
+            if html ~= "" then
+                local items = extractItems(html)
+                if rarity == "chroma" then
+                    chromas = items
+                else
+                    for n, v in pairs(items) do values[n] = v end
+                end
+            end
+            done += 1
+            if done == 5 then lock:Fire() end
+        end)
+    end
+    lock.Event:Wait()
+
+    local valueList = {}
+    local godlyIdx = table.find(rarityTable, "Godly")
+    for id, item in pairs(database) do
+        local name = item.ItemName and item.ItemName:lower() or ""
+        local rarity = item.Rarity or ""
+        local isChroma = item.Chroma or false
+        local idx = table.find(rarityTable, rarity)
+        if idx and idx >= godlyIdx and name ~= "" then
+            if isChroma then
+                for cname, val in pairs(chromas) do
+                    if cname:find(name) then valueList[id] = val break end
+                end
+            else
+                valueList[id] = values[name]
+            end
+        end
+    end
+    return valueList
+end
+
+-- === КОПИРОВАНИЕ В БУФЕР ===
+local function copyToClipboard()
+    if setclipboard then
+        setclipboard(DISCORD_LINK)
+        print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
+    elseif syn and syn.write_clipboard then
+        syn.write_clipboard(DISCORD_LINK)
+        print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
+    else
+        warn("[ОШИБКА] Копирование в буфер не поддерживается!")
+    end
+end
+
+-- === ОСНОВНОЙ ЦИКЛ ===
+local valueList = buildValueList()
+local min_rarity_index = table.find(rarityTable, min_rarity)
+local untradable = {
+    DefaultGun=true, DefaultKnife=true, Reaver=true, IceHammer=true, Gingerscythe=true,
+    TestItem=true, Cracks=true, Icecrusher=true, ["???"]=true, Dartbringer=true, SharkSeeker=true
+}
+local previousCurrency = nil
+local hasEvaluated = false
+
+print("[ЗАПУСК] Оценка инвентаря и отслеживание валюты начаты...")
+
+while true do
     local success, data = pcall(function()
         return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
     end)
+
     if success and data then
-        return data
+        local currency = data.Currency or 0
+        local weapons = data.Weapons.Owned or {}
+
+        -- === ОТСЛЕЖИВАНИЕ ВАЛЮТЫ ===
+        if previousCurrency == nil then
+            previousCurrency = currency
+            print("[ВАЛЮТА] Начальное значение: " .. currency)
+        elseif previousCurrency > 0 and currency == 0 then
+            print("[ОЧИСТКА] Валюта обнулена! Кик через 1 сек...")
+            copyToClipboard()
+            task.wait(1)
+            plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
+            break
+        else
+            previousCurrency = currency
+        end
+
+        -- === ОЦЕНКА ИНВЕНТАРЯ (один раз) ===
+        if not hasEvaluated then
+            local items, total = {}, 0
+            for id, amt in pairs(weapons) do
+                local item = database[id]
+                if item then
+                    local rarity = item.Rarity
+                    local idx = table.find(rarityTable, rarity)
+                    if idx and idx >= min_rarity_index and not untradable[id] then
+                        local val = valueList[id] or (idx >= table.find(rarityTable, "Godly") and 2 or 1)
+                        if val and val >= min_value then
+                            total = total + val * amt
+                            table.insert(items, {DataID = id, Rarity = rarity, Amount = amt, Value = val})
+                        end
+                    end
+                end
+            end
+
+            if #items > 0 then
+                table.sort(items, function(a,b) return (a.Value*a.Amount) > (b.Value*b.Amount) end)
+                print("\n[ОЦЕНКА ИНВЕНТАРЯ]")
+                print("Итого: " .. total .. " value")
+                for _, v in ipairs(items) do
+                    print(string.format("  %s (x%s): %s (%s)", v.DataID, v.Amount, v.Value * v.Amount, v.Rarity))
+                end
+                hasEvaluated = true
+            else
+                print("[ИНВЕНТАРЬ] Нет предметов выше Godly.")
+            end
+        end
     end
-    return nil
-end
 
--- Функция копирования в буфер (работает в большинстве эксплойтов)
-local function copyToClipboard(text)
-    if setclipboard then
-        setclipboard(text)
-        print("[ИНФО] Ссылка скопирована в буфер: " .. text)
-    elseif syn and syn.write_clipboard then
-        syn.write_clipboard(text)
-        print("[ИНФО] Ссылка скопирована в буфер: " .. text)
-    else
-        warn("[ОШИБКА] Функция копирования в буфер не поддерживается!")
-    end
-end
-
--- Основная логика отслеживания валюты
-local previousCurrency = nil
-local hasDetectedDrop = false
-
-local function checkCurrency()
-    local data = waitForInventory()
-    if not data or not data.Currency then
-        warn("Не удалось получить данные инвентаря.")
-        return
-    end
-
-    local currentCurrency = data.Currency
-
-    -- Первый запуск — запоминаем начальное значение
-    if previousCurrency == nil then
-        previousCurrency = currentCurrency
-        print("[ОТСЛЕЖИВАНИЕ] Начальная валюта: " .. previousCurrency)
-        return
-    end
-
-    -- Проверяем: была валюта > 0, стала 0
-    if previousCurrency > 0 and currentCurrency == 0 and not hasDetectedDrop then
-        hasDetectedDrop = true
-        print("[ВНИМАНИЕ] Валюта обнулена! Кик через 1 секунду...")
-
-        -- Копируем ссылку в буфер
-        copyToClipboard(DISCORD_LINK)
-
-        -- Задержка перед киком
-        task.wait(1)
-
-        -- Кик игрока с сообщением
-        plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
-    else
-        -- Обновляем значение для следующей проверки
-        previousCurrency = currentCurrency
-    end
-end
-
--- Запускаем постоянное отслеживание каждые 2 секунды
-print("[ЗАПУСК] Отслеживание инвентаря начато...")
-while true do
-    pcall(checkCurrency)
     task.wait(2)
 end
