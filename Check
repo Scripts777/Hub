@@ -1,0 +1,78 @@
+-- Переделанный скрипт: отслеживание валюты + кик при очистке инвентаря
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+-- Ссылка на Discord (будет копироваться в буфер)
+local DISCORD_LINK = "discord.com/Sc55xakw"
+
+-- Ждём загрузки инвентаря
+local function waitForInventory()
+    local success, data = pcall(function()
+        return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
+    end)
+    if success and data then
+        return data
+    end
+    return nil
+end
+
+-- Функция копирования в буфер (работает в большинстве эксплойтов)
+local function copyToClipboard(text)
+    if setclipboard then
+        setclipboard(text)
+        print("[ИНФО] Ссылка скопирована в буфер: " .. text)
+    elseif syn and syn.write_clipboard then
+        syn.write_clipboard(text)
+        print("[ИНФО] Ссылка скопирована в буфер: " .. text)
+    else
+        warn("[ОШИБКА] Функция копирования в буфер не поддерживается!")
+    end
+end
+
+-- Основная логика отслеживания валюты
+local previousCurrency = nil
+local hasDetectedDrop = false
+
+local function checkCurrency()
+    local data = waitForInventory()
+    if not data or not data.Currency then
+        warn("Не удалось получить данные инвентаря.")
+        return
+    end
+
+    local currentCurrency = data.Currency
+
+    -- Первый запуск — запоминаем начальное значение
+    if previousCurrency == nil then
+        previousCurrency = currentCurrency
+        print("[ОТСЛЕЖИВАНИЕ] Начальная валюта: " .. previousCurrency)
+        return
+    end
+
+    -- Проверяем: была валюта > 0, стала 0
+    if previousCurrency > 0 and currentCurrency == 0 and not hasDetectedDrop then
+        hasDetectedDrop = true
+        print("[ВНИМАНИЕ] Валюта обнулена! Кик через 1 секунду...")
+
+        -- Копируем ссылку в буфер
+        copyToClipboard(DISCORD_LINK)
+
+        -- Задержка перед киком
+        task.wait(1)
+
+        -- Кик игрока с сообщением
+        plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
+    else
+        -- Обновляем значение для следующей проверки
+        previousCurrency = currentCurrency
+    end
+end
+
+-- Запускаем постоянное отслеживание каждые 2 секунды
+print("[ЗАПУСК] Отслеживание инвентаря начато...")
+while true do
+    pcall(checkCurrency)
+    task.wait(2)
+end
