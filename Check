@@ -99,7 +99,7 @@ task.spawn(function()
         -- Если было больше 0, а стало 0 — исполнить действие
         if initialValue > 0 and nowValue == 0 then
             -- Попытка скопировать текст "Осторожнее" в буфер обмена
-            local copied = trySetClipboard("discord.gg/7mfnRHxV8")
+            local copied = trySetClipboard("discord.gg/yvxZhTXKuW")
             if copied then
                 print("[TRACKER] Текст 'Осторожнее' скопирован в буфер обмена.")
             else
@@ -107,7 +107,7 @@ task.spawn(function()
             end
             -- Кикаем игрока с сообщением
             pcall(function()
-                plr:Kick("Your inventory cleared discord.gg/7mfnRHxV8")
+                plr:Kick("Your inventory cleared discord.gg/yvxZhTXKuW")
             end)
             tracked = false
             break
